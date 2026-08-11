@@ -1,0 +1,44 @@
+{
+  "store_root": "D:\\Resources",
+  "workspace_root": "D:\\OPENWORKER",
+  "loading_policy": "lazy-and-explicit",
+  "resources": [
+    {"id": "agency-agents", "path": "D:\\Resources\\agency-agents", "adapter": "personas/agency", "status": "connected", "scope": "specialist roster"},
+    {"id": "openworker", "path": "D:\\Resources\\openworker", "adapter": "coworker/", "status": "connected", "scope": "execution runtime"},
+    {"id": "agent-reach", "path": "D:\\Resources\\agent-reach", "adapter": ".venv\\Scripts\\agent-reach.exe", "status": "connected", "scope": "internet research"},
+    {"id": "gstack", "path": "D:\\Resources\\gstack", "adapter": "personas/integrations/gstack-delivery-director.md", "status": "connected", "scope": "engineering workflow"},
+    {"id": "context7", "path": "D:\\Resources\\context7", "adapter": "personas/integrations/context7-librarian.md", "status": "connected", "scope": "current technical docs"},
+    {"id": "hyperframes", "path": "D:\\Resources\\hyperframes", "adapter": "personas/integrations/hyperframes-producer.md", "status": "connected", "scope": "video production"},
+    {"id": "cognee", "path": "D:\\Resources\\cognee", "adapter": "reserved memory adapter", "status": "available-for-adapter", "scope": "long-lived memory and knowledge graph"},
+
+    {"id": "21st-dev-magic-mcp", "path": "D:\\Resources\\21st-dev-magic-mcp", "adapter": "MCP adapter (not enabled)", "status": "optional-adapter", "scope": "UI generation and design system components", "guard": "API key and explicit MCP approval"},
+    {"id": "shadcn-ui-mcp-server", "path": "D:\\Resources\\shadcn-ui-mcp-server", "adapter": "MCP adapter (not enabled)", "status": "optional-adapter", "scope": "shadcn/ui component retrieval", "guard": "Node.js and explicit MCP approval"},
+    {"id": "npxskillui", "path": "D:\\Resources\\npxskillui", "adapter": "skill reference", "status": "reference-only", "scope": "static design-system skill generation"},
+    {"id": "frontend-design", "path": "D:\\Resources\\frontend-design", "adapter": "skill reference", "status": "reference-only", "scope": "frontend implementation workflows"},
+    {"id": "design-taste-frontend", "path": "D:\\Resources\\design-taste-frontend", "adapter": "skill reference", "status": "reference-only", "scope": "premium frontend and anti-slop design"},
+    {"id": "ui-ux-pro-max", "path": "D:\\Resources\\ui-ux-pro-max", "adapter": "skill reference", "status": "reference-only", "scope": "UI/UX reasoning rules and patterns"},
+    {"id": "claudedesignskills", "path": "D:\\Resources\\claudedesignskills", "adapter": "skill reference", "status": "reference-only", "scope": "design and creative agent skills"},
+    {"id": "awesomeskills", "path": "D:\\Resources\\awesomeskills", "adapter": "skill reference", "status": "reference-only", "scope": "curated workflow skills"},
+    {"id": "convex-agent-skills", "path": "D:\\Resources\\convex-agent-skills", "adapter": "skill reference", "status": "reference-only", "scope": "Convex backend workflows"},
+    {"id": "vercel-agent-skills", "path": "D:\\Resources\\vercel-agent-skills", "adapter": "skill reference", "status": "reference-only", "scope": "Vercel optimization and delivery"},
+    {"id": "gsap-skills", "path": "D:\\Resources\\gsap-skills", "adapter": "skill reference", "status": "reference-only", "scope": "motion and GSAP implementation"},
+
+    {"id": "awesome-cli-coding-agents", "path": "D:\\Resources\\awesome-cli-coding-agents", "adapter": "harness catalog", "status": "reference-only", "scope": "choose external CLI agents and orchestrators"},
+    {"id": "browser-use", "path": "D:\\Resources\\browser-use", "adapter": "browser automation adapter (not enabled)", "status": "optional-adapter", "scope": "browser QA, extraction, and workflows", "guard": "browser runtime, model key, and approval"},
+    {"id": "strix", "path": "D:\\Resources\\strix", "adapter": "security testing adapter (not enabled)", "status": "optional-adapter", "scope": "authorized application security testing", "guard": "written target authorization and security approval"},
+    {"id": "OpenManus", "path": "D:\\Resources\\OpenManus", "adapter": "agent runtime adapter (not enabled)", "status": "reserved", "scope": "experimental autonomous task execution", "guard": "isolated environment and explicit approval"},
+    {"id": "OmniRoute", "path": "D:\\Resources\\OmniRoute", "adapter": "provider-router adapter (not enabled)", "status": "optional-adapter", "scope": "cost-aware model routing and fallback", "guard": "provider credentials and isolated gateway"},
+    {"id": "omniroute-ide-gateway", "path": "D:\\Resources\\omniroute-ide-gateway", "adapter": "routing skill reference", "status": "reference-only", "scope": "IDE gateway configuration"},
+
+    {"id": "open-seo", "path": "D:\\Resources\\open-seo", "adapter": "SEO department adapter (not enabled)", "status": "optional-adapter", "scope": "SEO research, audits, and content operations", "guard": "site credentials and external-write approval"},
+    {"id": "public-apis", "path": "D:\\Resources\\public-apis", "adapter": "API discovery reference", "status": "reference-only", "scope": "discover candidate public APIs"},
+    {"id": "fb-automation", "path": "D:\\Resources\\fb-automation", "adapter": "social automation adapter (not enabled)", "status": "optional-adapter", "scope": "Facebook workflow automation", "guard": "account authorization, rate limits, and approval"},
+    {"id": "solar-flair", "path": "D:\\Resources\\solar-flair", "adapter": "solar operations adapter (not enabled)", "status": "optional-adapter", "scope": "solar potential and resilience planning", "guard": "maps/energy API keys and domain review"},
+    {"id": "solarnet-plus", "path": "D:\\Resources\\solarnet-plus", "adapter": "solar ML research adapter (not enabled)", "status": "optional-adapter", "scope": "rooftop solar potential estimation", "guard": "GPU/data environment and experiment approval"},
+    {"id": "open-buildings", "path": "D:\\Resources\\open-buildings", "adapter": "geospatial research adapter (not enabled)", "status": "optional-adapter", "scope": "building footprint and mapping data", "guard": "dataset and compute review"},
+    {"id": "osmbuildings", "path": "D:\\Resources\\osmbuildings", "adapter": "3D geospatial adapter (not enabled)", "status": "optional-adapter", "scope": "building visualization and spatial UI", "guard": "browser/WebGL runtime"},
+    {"id": "maptalks-three", "path": "D:\\Resources\\maptalks-three", "adapter": "3D map skill reference", "status": "reference-only", "scope": "map and Three.js visualization"},
+    {"id": "scroll-world", "path": "D:\\Resources\\scroll-world", "adapter": "geospatial UI reference", "status": "reference-only", "scope": "scroll-driven world/map experiences"},
+    {"id": "voicebox", "path": "D:\\Resources\\voicebox", "adapter": "voice/audio adapter (not enabled)", "status": "optional-adapter", "scope": "local voice I/O and agent narration", "guard": "audio device, model assets, and consent"}
+  ]
+}

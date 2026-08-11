@@ -1,0 +1,33 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+
+# Local OpenWorker server state and logs (contains tokens and session data)
+.state/
+runtime-state*/
+server.out.log
+server.err.log
+
+# Credentials and machine-local secrets
+.env
+.env.*
+!.env.example
+*.token
+sidecar-*.token
+*.pem
+*.key
+credentials*.json
+
+# Downloaded dependency trees; restore with the documented package managers
+.opencode/node_modules/
+vendor/**/node_modules/
+vendor/**/.venv/
+
+# Local GitHub CLI installation and auth state
+tools/
+.github-cli/
