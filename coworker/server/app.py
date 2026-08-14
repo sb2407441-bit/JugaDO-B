@@ -189,6 +189,11 @@ def create_app(manager: SessionManager) -> FastAPI:
 
     def _request_authenticated(request: Request) -> bool:
         provided = request.headers.get("x-openworker-token", "")
+        if not provided:
+            authorization = request.headers.get("authorization", "")
+            scheme, _, bearer = authorization.partition(" ")
+            if scheme.lower() == "bearer":
+                provided = bearer.strip()
         return bool(
             api_token
             and provided
