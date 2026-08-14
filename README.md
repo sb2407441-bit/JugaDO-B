@@ -1,167 +1,200 @@
-# JugaDO-B — Governed AI Operating System
+# Human AI — Governed AI Operating System
 
-JugaDO-B is a governed AI operating system built on the OpenWorker runtime. It operates as a virtual company with specialist AI departments that collaborate through structured handoffs, approval gates, and a quality-gated delivery pipeline. Every task enters a systematic funnel: Intake → Triage → Route → Plan → Build → QA → Deliver → Learn. Bring your own model keys and tools — everything runs locally on your machine.
+**Human AI** (formerly OpenWorker) is a governed AI operating system built on a local-first runtime. It operates as a virtual company with specialist AI departments that collaborate through structured handoffs, approval gates, and a quality-gated delivery pipeline. Every task enters a systematic funnel: Intake → Triage → Route → Plan → Build → QA → Deliver → Learn. Bring your own model keys and tools — everything runs locally on your machine.
 
-## What's running
+## What's Running
 
 | Layer | What it is | Status |
 |---|---|---|
-| OpenWorker runtime | Python agent engine, approval gates, connectors, memory, MCP | Active |
-| Agency Specialists | 270 role personas across 14 departments | Active |
-| Corporate OS | Intake funnel, routing, quality gates, handoff protocol | Active |
-| Agent Reach | Approval-gated internet research | Connected |
-| gstack | Engineering delivery discipline | Connected |
-| Context7 | Current library/API documentation | Connected |
-| HyperFrames | Video/motion production | Connected |
-| Cognee | AI memory & knowledge graph | Adapter-ready |
-| OmniRoute | Free token routing (290 providers, ~1.53B tokens/mo) | Adapter-ready |
-| browser-use | AI browser automation | Adapter-ready |
-| strix | AI security testing | Adapter-ready |
-| voicebox | Voice I/O & narration | Adapter-ready |
+| **Human AI runtime** | Python agent engine, approval gates, connectors, memory, MCP | Active |
+| **Agency Specialists** | 270+ role personas across 14 departments | Active |
+| **Corporate OS** | Intake funnel, routing, quality gates, handoff protocol | Active |
+| **OmniRoute** | Free token routing (290+ providers, ~1.53B tokens/mo) | Active |
+| **Agent Reach** | Approval-gated internet research | Connected |
+| **gstack** | Engineering delivery discipline | Connected |
+| **Context7** | Current library/API documentation | Connected |
+| **HyperFrames** | Video/motion production | Connected |
+| **Cognee** | AI memory & knowledge graph | Adapter-ready |
+| **browser-use** | AI browser automation | Adapter-ready |
+| **strix** | AI security testing | Adapter-ready |
+| **voicebox** | Voice I/O & narration | Adapter-ready |
 
-## Start here
+## Quick Start
 
-1. Set up the OpenWorker runtime — follow **Run from source** below
-2. Switch to the **Corporate Chief of Staff** persona to use the full team
-3. Read `corporation/TEAM.md` to see the roster and load triggers
-4. Read `corporation/HANDOFF-PROTOCOL.md` to understand how work is handed off
-5. Read `INTEGRATIONS.md` for how to activate adapter-ready integrations
-6. Read `RESOURCE-SETUP.md` for the `D:\Resources` store and HyperFrames prerequisites
+### Prerequisites
+- Python 3.10+
+- Node 20+
+- (Optional) Rust toolchain via [rustup](https://rustup.rs/) for desktop shell
 
-## Key governance files
+### Run from Source
 
-| File | Purpose |
-|---|---|
-| `AGENTS.md` | Master workspace config — read by OpenWorker at startup |
-| `corporation/TEAM.md` | Active roster, roles, and load triggers |
-| `corporation/ROUTING.md` | Domain-to-persona routing table |
-| `corporation/OPERATING_SYSTEM.md` | Professional delivery funnel |
-| `corporation/HANDOFF-PROTOCOL.md` | Handoff brief format and rules |
-| `corporation/QUALITY-GATES.md` | Per-task-type quality checklists |
-| `corporation/COLLABORATION.md` | Task patterns and team norms |
-| `INTEGRATIONS.md` | Integration catalog and activation guides |
-| `RESOURCE-SETUP.md` | D:\Resources store setup |
+```shell
+git clone https://github.com/sb2407441-bit/JugaDO-B
+cd JugaDO-B
 
----
+# 1. Bootstrap Python venv (Windows: run from Git Bash or WSL)
+bash packaging/setup_dev_env.sh
 
-# Upstream OpenWorker
+# 2. Start OmniRoute gateway (port 20128) - required for auto-router
+cd D:\Resources\OmniRoute
+npm run dev
 
-**[openworker.com](https://openworker.com)** · [Download](#download) · [Issues](https://github.com/andrewyng/openworker/issues)
+# 3. Start Human AI server (port 8765)
+cd D:\JugaDO-B
+.venv\Scripts\python.exe -m coworker.server.run --cwd D:\JugaDO-B --port 8765
 
-<a href="https://trendshift.io/repositories/91434?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-91434" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/91434/daily?language=Python" alt="andrewyng%2Fopenworker | Trendshift" width="250" height="55"/></a>
+# 4. Start GUI (Vite dev server on port 5175)
+cd surfaces\gui
+npm install
+npm run dev
+```
 
-> **Beta** - OpenWorker is in open beta: fully usable, updates itself, and we're actively polishing rough edges. [Issues](https://github.com/andrewyng/openworker/issues) welcome.
+Open `http://localhost:5175` — the GUI connects to the server on 8765 and OmniRoute on 20128.
 
-**AI that gets your everyday tasks done.** OpenWorker is an open-source AI coworker that lives on your desktop and delivers **finished work**, not just chat: a polished document, a Slack reply with the numbers, an updated calendar, a triaged inbox.
+### Architecture
 
-It runs on your machine and doesn't lock you into any model: bring your own API key for OpenAI, Anthropic, Google, or an open-weight provider, or run fully local with Ollama. Your data leaves your machine only through the model and integrations *you* choose.
-
-[![How OpenWorker works](docs/assets/how-it-works.png)](https://openworker.com)
-
-## Download
-
-[**⬇ macOS (Apple Silicon)**](https://download.openworker.com/mac)
-<sub>macOS 12+ · signed & notarized · auto-updates</sub>
-
-[**⬇ Windows 10/11 (x64)**](https://download.openworker.com/windows)
-<sub>builds are not yet code-signed, so SmartScreen will warn; signing is in progress</sub>
-
-Open the app, add a model key (or point it at Ollama), and ask for something real.
-
-## How it works
-
-1. Tell OpenWorker the outcome you want - "prepare a customer brief," "untangle my calendar," "draft a report," "check where the release stands across Jira and GitHub."
-2. It breaks the task into steps and works across your desktop, files, and connected apps.
-3. Before anything consequential - sending a message, changing a calendar, running a command - it checks in and you approve or redirect.
-4. You get the finished deliverable, not a to-do list.
-
-Under the hood:
-
-```text
+```
 ┌────────────────────────────────────────────────┐
-│              OpenWorker desktop app            │  native shell + GUI
+│              Human AI Desktop App              │  React UI + Tauri shell
 ├────────────────────────────────────────────────┤
-│           local agent server (Python)          │  engine · tools · connectors - built on aisuite
+│           Local Agent Server (Python)          │  Engine · Tools · Connectors
 ├───────────────┬────────────────┬───────────────┤
-│  your files   │   your tools   │  your model   │  everything runs with your keys,
-│  & terminal   │ 25+ connectors │  any provider │  on your machine
+│  Your Files   │   Your Tools   │  Your Model   │  Everything runs with YOUR keys,
+│  & Terminal   │ 25+ Connectors │  Any Provider │  on YOUR machine
 └───────────────┴────────────────┴───────────────┘
 ```
 
-## What it can do
+## Key Features
 
-- **Produce real deliverables** - documents, spreadsheets, reports, and web pages land as files you can open and share.
-- **Work from Slack** - mention `@OpenWorker` in a channel; a session opens on your desktop, the work happens with your tools, and the answer comes back as a thread reply.
-- **Use your everyday tools** - 25+ integrations including GitHub, Slack, Jira, Notion, Linear, HubSpot, Outlook, monday.com, Gmail, and Google Calendar, plus your **terminal and local files**. Any tool reachable over [MCP](https://modelcontextprotocol.io/) plugs in too, with per-tool control.
-- **Run on a schedule** - automations for recurring work: a morning brief, a weekly report, a standing watch over a channel. Runs land in the app with full transcripts.
-- **Ask before acting** - writes, sends, and shell commands are approval-gated. Unattended runs park their asks in an inbox instead of acting on their own.
+### 🤖 Auto-Router with Free-Tier Fallback
+- **OmniRoute** (290+ providers) with auto-combos: `auto/best-free`, `auto/coding`, `auto/reasoning`, `auto/fast`, `auto/chat`
+- **LLM7** keyless gateway (no signup, `Bearer keyless` works)
+- **SambaNova** free tier (DeepSeek-V3.2, Llama-3.3-70B, GPT-OSS-120B)
+- **Size guard** skips Groq for prompts >7000 tokens (avoids 413)
+- **Tool-call sanitization** fixes HF Gateway duplicate-ID bug (400 → works)
 
-## Bring your own model
+### 🎯 Governed Delivery Pipeline
+```
+INTAKE → TRIAGE → ROUTE → PLAN → BUILD → QA → DELIVER → LEARN
+```
+- Every task has **one accountable owner**
+- **Approval gates** before consequential actions
+- **Small reversible steps** — ten verified steps over one leap
+- **Quality gates** per task type (code, research, content, data, security, infra)
 
-Model access is yours: pick a provider, paste your key, switch anytime. Supported out of the box:
+### 🏢 Virtual Agency (270+ Specialists)
+14 departments with 270+ role personas:
+- **Software Delivery** — gstack Delivery Director, Senior Developer, Code Reviewer
+- **Technical Documentation** — Context7 Technical Librarian, Technical Writer
+- **Research** — Agent Reach Researcher, Trend Researcher
+- **Security & Privacy** — Security Architect, Privacy Engineer, Penetration Tester
+- **Data & Reporting** — Data Engineer, Analytics Reporter, Data Visualization Engineer
+- **Growth & Business** — Business Strategist, Growth Hacker, Proposal Strategist
+- **Operations** — Operations Manager, FinOps Engineer
+- **Frontend & Design** — Frontend/Design Lead, UI Designer, UX Architect
+- **Browser Automation** — Browser Automation Lead, Evidence Collector
+- **SEO & Content** — SEO Specialist, Content Creator, Growth Lead
+- **GIS & Spatial** — Geospatial Lead
+- **Voice & Media** — Voice/Media Lead, HyperFrames Producer
+- **Platform & Cost** — Platform Architect, FinOps Engineer
 
-**OpenAI · Anthropic · Google Gemini · Inkling (Thinking Machines) · GLM (Z.ai) · DeepSeek · Kimi (Moonshot) · Qwen · MiniMax · Mistral · Grok (xAI)** - plus open-weight models via **Together** and **Fireworks**, and fully local models via **Ollama**.
+### 🔧 25+ Connectors
+GitHub, Slack, Jira, Notion, Linear, HubSpot, Outlook, monday.com, Gmail, Google Calendar, MCP servers, and more — with per-tool approval control.
 
-A curated model list marks what we've verified for tool-calling work. Adding any model string works at your own risk.
+## Governance Files
+
+| File | Purpose |
+|---|---|
+| `AGENTS.md` | Master workspace config — read at startup |
+| `corporation/TEAM.md` | Active roster, roles, load triggers |
+| `corporation/ROUTING.md` | Domain-to-persona routing table |
+| `corporation/OPERATING_SYSTEM.md` | Professional delivery funnel |
+| `corporation/HANDOFF_PROTOCOL.md` | Handoff brief format and rules |
+| `corporation/QUALITY_GATES.md` | Per-task-type quality checklists |
+| `corporation/COLLABORATION.md` | Task patterns and team norms |
+| `INTEGRATIONS.md` | Integration catalog and activation guides |
+| `RESOURCE_SETUP.md` | D:\Resources store setup |
+| `DEPLOYMENT_RISKS.md` | Deployment errors, logical issues, runbooks |
+
+## Model Routing (Default Chain)
+
+```
+omniroute:auto/best-free → llm7:gemini-3.1-flash-lite → gemini:gemini-3.6-flash → 
+groq:llama-3.3-70b-versatile → llm7:codestral-latest → mistral:mistral-large-latest
+```
+
+- **OmniRoute** auto-combos pick best available model per task
+- **LLM7** keyless — no signup, native tool-calling verified
+- **Gemini/Groq/Mistral** — your keys, fallbacks when free tiers exhaust
+- **Size guard** — prompts >7000 tokens skip Groq (avoids 413)
 
 ## Privacy
 
-OpenWorker is local-first. Everything lives on your machine: the agent loop, your conversations, connector tokens, and model keys - all in the app's local secret store. The only cloud piece is a small service that brokers OAuth handshakes for connectors. You can always use the App without signing-in - use the connectors via manually-created credentials/API-keys.
+**Local-first.** Everything lives on your machine:
+- Agent loop, conversations, connector tokens, model keys → local secret store
+- Only cloud piece: small OAuth broker for connectors (optional — manual keys work)
+- Use without signing in — manual credentials/API keys for all connectors
 
-## Run from source
-
-Prerequisites: Python 3.10+, Node 20+, and (for the desktop shell) the Rust toolchain via [rustup](https://rustup.rs/).
+## Run from Source (Full)
 
 ```shell
-git clone https://github.com/andrewyng/openworker
-cd openworker
+git clone https://github.com/sb2407441-bit/JugaDO-B
+cd JugaDO-B
 
-# 1. One-time bootstrap - creates the Python venv at .venv
-#    (on Windows, run from Git Bash or WSL)
+# 1. Bootstrap Python venv (Windows: Git Bash or WSL)
 bash packaging/setup_dev_env.sh
 
-# 2. Start the local agent server
-.venv/bin/openworker-server --cwd ~/some/project --port 8765
-#    (Windows: .venv\Scripts\openworker-server.exe)
+# 2. Start OmniRoute gateway (keep running)
+cd D:\Resources\OmniRoute
+npm run dev  # Port 20128
 
-# 3. In a second terminal, start the UI
-cd surfaces/gui
+# 3. Start Human AI server
+.venv\Scripts\python.exe -m coworker.server.run --cwd D:\JugaDO-B --port 8765
+
+# 4. Start GUI
+cd surfaces\gui
 npm install
-npm run dev        # browser UI on the Vite dev port
+npm run dev  # http://localhost:5175
 ```
 
-The standalone server creates a per-launch token at
-`<state-dir>/sidecar-8765.token`; Vite reads that user-only file when it starts.
-For direct API calls, send its value in the `X-OpenWorker-Token` header. The
-desktop app uses an in-memory launch token instead and never writes it to disk.
+**Desktop app** (instead of browser UI): `npm run tauri dev` from `surfaces/gui/`
 
-To run the full desktop app instead of the browser UI, replace step 3 with `npm run tauri dev` (from `surfaces/gui/`) - the Tauri shell launches the window and supervises the server itself.
+## Tests
 
-Tests: `.venv/bin/pytest` (server), `npm test` and `npm run e2e` in `surfaces/gui` (GUI unit + hermetic end-to-end). Desktop bundles are built with `packaging/build_dmg.sh` / `packaging/build_windows.ps1`.
+```shell
+# Backend
+.venv\Scripts\pytest tests/ -q
 
-## Repository layout
+# GUI unit + e2e
+cd surfaces\gui
+npm test
+npm run e2e
+```
+
+## Repository Layout
 
 | Directory | What's in it |
 |---|---|
 | `coworker/` | Python backend - agent engine, model providers, connectors, MCP client, memory, automations |
-| `surfaces/gui/` | Desktop app - React UI + Tauri shell that supervises the server |
+| `surfaces/gui/` | Desktop app - React UI + Tauri shell |
 | `stt/` | Speech-to-text sidecar (Rust) for voice input |
-| `packaging/` | Installer builds (macOS DMG, Windows), auto-update manifest, dev bootstrap |
-| `docs/` | Design specs and decision logs |
+| `packaging/` | Installer builds (macOS DMG, Windows), auto-update manifest |
+| `corporation/` | Governance files (TEAM, ROUTING, OS, HANDOFF, QUALITY_GATES) |
 | `tests/` | Backend test suite |
+| `personas/` | 270+ specialist persona definitions |
 
 ## Built on aisuite
 
-OpenWorker's engine is built on [**aisuite**](https://github.com/andrewyng/aisuite), a lightweight Python library providing a unified chat-completions API across LLM providers and an agents layer with tools, toolkits, and MCP support. If you want to build your own agent harness rather than use ours, start there; this repo is a working reference for what aisuite can carry.
-
-OpenWorker was originally developed inside the aisuite repository before moving to its own home here; thanks to the aisuite contributors whose work it builds on.
+Human AI's engine is built on [**aisuite**](https://github.com/andrewyng/aisuite) — a lightweight Python library providing a unified chat-completions API across LLM providers and an agents layer with tools, toolkits, and MCP support.
 
 ## Contributing
 
-Contributions and bug reports are welcome - open an [issue](https://github.com/andrewyng/openworker/issues) or a pull request. The app updates itself, so fixes reach installs quickly.
-For any PR, please attach screenshots of what was broken and how it is fixed now. We will shortly add features that you can contribute to.
-Please note that we are actively developing based off a internal list and goal, so we may not approve PRs that add features that are already under-development or deviates from our vision.
+Contributions and bug reports welcome — open an [issue](https://github.com/sb2407441-bit/JugaDO-B/issues) or PR. The app updates itself, so fixes reach installs quickly. For PRs, attach screenshots of the bug and fix.
 
 ## License
 
-MIT - see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
+
+---
+
+**Human AI** — AI that gets your everyday tasks done. An open-source AI coworker that lives on your desktop and delivers **finished work**, not just chat.

@@ -1,5 +1,5 @@
-# OpenWorker AI OS — one-command start (server + GUI)
-# Usage:  powershell -ExecutionPolicy Bypass -File .\scripts\start-openworker.ps1
+# Human AI OS — one-command start (server + GUI)
+# Usage:  powershell -ExecutionPolicy Bypass -File .\scripts\start-humanai.ps1
 
 $ErrorActionPreference = "Stop"
 $Root = "D:\OPENWORKER"
@@ -11,8 +11,8 @@ $serverRunning = Get-NetTCPConnection -LocalPort 8765 -State Listen -ErrorAction
 if ($serverRunning) {
     Write-Host "[server] already listening on 8765"
 } else {
-    Write-Host "[server] starting openworker-server on 8765 ..."
-    Start-Process -FilePath (Join-Path $Root ".venv\Scripts\openworker-server.exe") `
+    Write-Host "[server] starting humanai-server on 8765 ..."
+    Start-Process -FilePath (Join-Path $Root ".venv\Scripts\humanai-server.exe") `
         -ArgumentList "--cwd", $Root, "--port", "8765" `
         -RedirectStandardOutput (Join-Path $State "server-8765.out.log") `
         -RedirectStandardError  (Join-Path $State "server-8765.err.log") `
@@ -39,7 +39,7 @@ if ($guiRunning) {
 }
 
 Write-Host ""
-Write-Host "OpenWorker AI OS is UP."
+Write-Host "Human AI OS is UP."
 Write-Host "  Server API : http://127.0.0.1:8765  (token in %APPDATA%\coworker\sidecar-8765.token)"
 Write-Host "  GUI        : http://localhost:5175"
 Write-Host ""
