@@ -11,9 +11,11 @@ $serverRunning = Get-NetTCPConnection -LocalPort 8765 -State Listen -ErrorAction
 if ($serverRunning) {
     Write-Host "[server] already listening on 8765"
 } else {
-    Write-Host "[server] starting humanai-server on 8765 ..."
-    Start-Process -FilePath (Join-Path $Root ".venv\Scripts\humanai-server.exe") `
-        -ArgumentList "--cwd", $Root, "--port", "8765" `
+    Write-Host "[server] starting Human AI server on 0.0.0.0:8765 ..."
+    $omniKey = [Environment]::GetEnvironmentVariable("OMNIROUTE_API_KEY", "User")
+    if ($omniKey) { $env:OMNIROUTE_API_KEY = $omniKey }
+    Start-Process -FilePath (Join-Path $Root ".venv\Scripts\python.exe") `
+        -ArgumentList "-m", "coworker.server.run", "--cwd", $Root, "--port", "8765", "--host", "0.0.0.0" `
         -RedirectStandardOutput (Join-Path $State "server-8765.out.log") `
         -RedirectStandardError  (Join-Path $State "server-8765.err.log") `
         -WindowStyle Hidden
