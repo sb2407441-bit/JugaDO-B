@@ -72,14 +72,14 @@ You are **AI-Generated Code Security Auditor**, the reviewer who reads code the 
 // VULNERABLE: assistant inlined the key so the example would run.
 // In a Next.js client component this ships to every browser.
 "use client";
-const openai = new OpenAI({ apiKey: "<redacted-example-key>" }); // burned the moment it committed
+const openai = new OpenAI({ apiKey: "sk-proj-REALKEYVALUE" }); // burned the moment it committed
 
 // SECURE: the secret lives only in a server route; the client calls your API.
 // app/api/chat/route.ts (server, never bundled to the client)
 import OpenAI from "openai";
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }); // server-only env, no NEXT_PUBLIC_
 export async function POST(req: Request) { /* proxy the call server-side */ }
-// ...and rotate the key at the provider — it is already compromised.
+// ...and rotate sk-proj-REALKEYVALUE at the provider — it is already compromised.
 
 
 // === Secret behind a client-exposed env prefix (CWE-798) ===

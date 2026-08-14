@@ -126,14 +126,23 @@ def _ensure_ca_bundle() -> None:
 
 
 def _ensure_api_token(port: int) -> Path | None:
-    """Set launch auth; standalone/dev tokens use a user-only, port-specific file."""
+    """Set launch auth; standalone/dev tokens use a user-only, port-specific file.
+
+    The token is STABLE per port across restarts: a previously written sidecar token is reused
+    (the dev GUI bakes it at `vite dev` startup and would otherwise 401 on every server restart).
+    A fresh random token is only minted when no file exists yet. Tauri still supplies an
+    in-memory token via env, which never touches the filesystem."""
     if os.environ.get("COWORKER_API_TOKEN"):
         return None  # Tauri supplied an in-memory token; never persist it.
+    token_path = state_dir() / f"sidecar-{port}.token"
+    if token_path.exists():
+        existing = token_path.read_text(encoding="utf-8").strip()
+        if existing:
+            os.environ["COWORKER_API_TOKEN"] = existing
+            return token_path
     token = secrets.token_hex(32)
     os.environ["COWORKER_API_TOKEN"] = token
-    return write_private_text(
-        state_dir() / f"sidecar-{port}.token", token + "\n"
-    )
+    return write_private_text(token_path, token + "\n")
 
 
 def main(argv=None) -> None:

@@ -3,7 +3,8 @@ import type { Attachment, SessionUsage } from "../types";
 import { isPdfFile, readFile } from "../attach";
 import { getSettings, inspectPdf } from "../api";
 import { formatTokens, totalTokens } from "../usage";
-import { Dropdown, type Option } from "./Dropdown";
+import { GroupedModelDropdown, type ModelOption } from "./GroupedModelDropdown";
+import { type Option } from "./Dropdown";
 import { Icon } from "./Icon";
 import { Toggle } from "./Toggle";
 import {
@@ -32,6 +33,26 @@ const PERMISSION_OPTIONS: Option[] = [
 
 // Drop the provider prefix for display (anthropic:claude-opus-4-8 → claude-opus-4-8); full id on hover.
 const shortModel = (m: string) => (m.includes(":") ? m.split(":").slice(1).join(":") : m);
+
+const FREE_TIER_PROVIDERS = new Set(["llm7", "sambanova", "huggingface", "ollama"]);
+
+function getProviderContextWindow(provider: string, modelId: string): number | undefined {
+  const contextWindows: Record<string, Record<string, number>> = {
+    llm7: { "gemini-3.1-flash-lite": 1000000, "codestral-latest": 256000, "minimax-m2.7": 200000, "gpt-oss:20b": 131000 },
+    gemini: { "gemini-3.6-flash": 1000000, "gemini-3.6-pro": 2000000, "gemini-3.1-pro": 2000000 },
+    groq: { "llama-3.3-70b-versatile": 128000, "llama-3.1-70b-versatile": 128000, "mixtral-8x7b": 32000 },
+    openai: { "gpt-4o": 128000, "gpt-4o-mini": 128000, "gpt-4-turbo": 128000, "o1-preview": 128000 },
+    anthropic: { "claude-3-5-sonnet": 200000, "claude-3-opus": 200000, "claude-3-sonnet": 200000, "claude-3-haiku": 200000 },
+    mistral: { "mistral-large-latest": 128000, "mistral-medium": 32000, "mistral-small": 32000 },
+    sambanova: { "DeepSeek-V3.2": 128000, "DeepSeek-V3.1": 128000, "Meta-Llama-3.3-70B-Instruct": 128000, "MiniMax-M2.7": 200000, "gpt-oss-120b": 131000, "gemma-4-31B-it": 128000 },
+    ollama: {},
+    huggingface: {},
+  };
+  const providerData = contextWindows[provider];
+  if (!providerData) return undefined;
+  const shortId = modelId.includes(":") ? modelId.split(":").slice(1).join(":") : modelId;
+  return providerData[shortId];
+}
 
 // Identify an attachment by name + payload size so duplicates (e.g. the same file picked twice,
 // or a prefill applied twice) collapse to one chip.
@@ -330,12 +351,28 @@ export function Composer(props: Props) {
   };
 
   const modelsLoaded = !!(props.models && props.models.length);
-  const modelOptions: Option[] = Array.from(
+  const modelOptions: ModelOption[] = Array.from(
     new Set([props.model, ...(props.models || [])]),
-  ).map((m) => ({
-    value: m,
-    label: props.modelLabels?.[m] || shortModel(m),
-  }));
+  ).map((m) => {
+    const provider = extractProvider(m);
+    const shortId = shortModel(m);
+    const ctx = getProviderContextWindow(provider, m);
+    return {
+      value: m,
+      label: props.modelLabels?.[m] || shortId,
+      provider,
+      contextWindow: ctx,
+      isFreeTier: FREE_TIER_PROVIDERS.has(provider),
+      description: ctx ? `${ctx >= 1000000 ? (ctx / 1000000).toFixed(1) + "M" : (ctx / 1000).toFixed(0) + "K"} context` : undefined,
+    };
+  });
+
+  function extractProvider(modelId: string): string {
+    if (modelId.includes(":")) {
+      return modelId.split(":")[0].toLowerCase();
+    }
+    return "unknown";
+  }
 
   const iconBtn =
     "w-7 h-7 grid place-items-center rounded-md text-muted hover:text-ink hover:bg-paper shrink-0";
@@ -498,7 +535,13 @@ export function Composer(props: Props) {
               <span className="model-warn-ico" aria-hidden>⚠</span>
             </button>
           ) : modelsLoaded ? (
-            <Dropdown value={props.model} options={modelOptions} onChange={props.onModelChange} align="right" />
+            <GroupedModelDropdown
+              value={props.model}
+              options={modelOptions}
+              onChange={props.onModelChange}
+              align="right"
+              placeholder="Select model…"
+            />
           ) : (
             <button
               className="pill chip text-faint cursor-default"

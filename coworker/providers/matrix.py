@@ -16,9 +16,8 @@ where the vendor spec wasn't re-checked stay ``None`` — the meter simply hides
 showing a made-up denominator. Values entered 2026-07-28 from vendor docs; verify alongside
 the id refresh.
 
-Resellers: Together + Fireworks + OpenRouter. TODO: add Groq entries here AND its
-descriptor in ``registry.py`` once the current provider surface is tested — deliberately
-deferred to bound how much needs verifying at once.
+Resellers: Together + Fireworks + OpenRouter, plus free-tier Groq / Cerebras /
+Hugging Face (added 2026-08-14).
 """
 
 from __future__ import annotations
@@ -156,6 +155,229 @@ MATRIX: dict[str, ModelEntry] = {
     ),
     "openrouter:meta-llama/llama-4-maverick": ModelEntry(
         "Llama 4 Maverick · via OpenRouter", _AGENTIC, 1_000_000
+    ),
+    # -- free-tier resellers (added 2026-08-14, ids checked against live /models) --------
+    "groq:llama-3.3-70b-versatile": ModelEntry(
+        "Llama 3.3 70B · Groq", _AGENTIC, 131_072
+    ),
+    "groq:openai/gpt-oss-120b": ModelEntry(
+        "GPT-OSS 120B · Groq", _AGENTIC, 131_072
+    ),
+    "groq:qwen/qwen3.6-27b": ModelEntry("Qwen3.6 27B · Groq", _AGENTIC, 131_072),
+    "groq:meta-llama/llama-4-scout-17b-16e-instruct": ModelEntry(
+        "Llama 4 Scout · Groq", _AGENTIC, 131_072
+    ),
+    "cerebras:gpt-oss-120b": ModelEntry("GPT-OSS 120B · Cerebras", _AGENTIC, 131_072),
+    "cerebras:gemma-4-31b": ModelEntry("Gemma 4 31B · Cerebras", _AGENTIC, 131_072),
+    # HF Inference Providers model namespace = HF repo id (+ optional :provider suffix).
+    "huggingface:openai/gpt-oss-120b": ModelEntry(
+        "GPT-OSS 120B · HF Gateway", _AGENTIC, 131_072
+    ),
+    "huggingface:meta-llama/Llama-4-Scout-17B-16E-Instruct": ModelEntry(
+        "Llama 4 Scout · HF Gateway", _AGENTIC, 1_000_000
+    ),
+    # -- keyless + free-tier gateways (added 2026-08-14; LLM7 ids live-verified) --------
+    "llm7:gemini-3.1-flash-lite": ModelEntry(
+        "Gemini 3.1 Flash Lite · LLM7 (keyless)", _AGENTIC, 1_000_000
+    ),
+    "llm7:codestral-latest": ModelEntry(
+        "Codestral · LLM7 (keyless)", _AGENTIC, 256_000
+    ),
+    "llm7:minimax-m2.7": ModelEntry(
+        "MiniMax M2.7 · LLM7 (keyless)", _AGENTIC, 200_000
+    ),
+    "llm7:gpt-oss:20b": ModelEntry(
+        "GPT-OSS 20B · LLM7 (keyless)", _AGENTIC, 131_072
+    ),
+    "sambanova:DeepSeek-V3.2": ModelEntry(
+        "DeepSeek V3.2 · SambaNova", _AGENTIC, 128_000
+    ),
+    "sambanova:DeepSeek-V3.1": ModelEntry(
+        "DeepSeek V3.1 · SambaNova", _AGENTIC, 128_000
+    ),
+    "sambanova:Meta-Llama-3.3-70B-Instruct": ModelEntry(
+        "Llama 3.3 70B · SambaNova", _AGENTIC, 128_000
+    ),
+    "sambanova:MiniMax-M2.7": ModelEntry(
+        "MiniMax M2.7 · SambaNova", _AGENTIC, 200_000
+    ),
+    "sambanova:gpt-oss-120b": ModelEntry(
+        "GPT-OSS 120B · SambaNova", _AGENTIC, 131_072
+    ),
+    "sambanova:gemma-4-31B-it": ModelEntry(
+        "Gemma 4 31B · SambaNova", _AGENTIC, 128_000
+    ),
+    # -- OmniRoute local gateway (auto-combos + 290+ providers) ----------------------
+    # Auto-router combos: route to best available model for the task.
+    "omniroute:auto/best-free": ModelEntry(
+        "Best Free · OmniRoute", _AGENTIC, 1_048_576
+    ),
+    "omniroute:auto/best-coding": ModelEntry(
+        "Best Coding · OmniRoute", _AGENTIC, 1_048_576
+    ),
+    "omniroute:auto/best-reasoning": ModelEntry(
+        "Best Reasoning · OmniRoute", _AGENTIC, 1_048_576
+    ),
+    "omniroute:auto/best-fast": ModelEntry(
+        "Best Fast · OmniRoute", _AGENTIC, 1_048_576
+    ),
+    "omniroute:auto/best-chat": ModelEntry(
+        "Best Chat · OmniRoute", _AGENTIC, 1_048_576
+    ),
+    "omniroute:auto/best-vision": ModelEntry(
+        "Best Vision · OmniRoute",
+        ModelCapabilities(
+            tools=True, vision=True, parallel_tool_calls=True, streaming=True
+        ),
+        1_048_576
+    ),
+    "omniroute:auto/coding": ModelEntry("Auto Coding · OmniRoute", _AGENTIC, 1_048_576),
+    "omniroute:auto/reasoning": ModelEntry("Auto Reasoning · OmniRoute", _AGENTIC, 1_048_576),
+    "omniroute:auto/fast": ModelEntry("Auto Fast · OmniRoute", _AGENTIC, 1_048_576),
+    "omniroute:auto/chat": ModelEntry("Auto Chat · OmniRoute", _AGENTIC, 1_048_576),
+    "omniroute:auto/cheap": ModelEntry("Auto Cheap · OmniRoute", _AGENTIC, 1_048_576),
+    "omniroute:auto/best-coding-fast": ModelEntry(
+        "Best Coding Fast · OmniRoute", _AGENTIC, 1_048_576
+    ),
+    "omniroute:auto/pro-coding": ModelEntry(
+        "Pro Coding · OmniRoute", _AGENTIC, 1_048_576
+    ),
+    "omniroute:auto/pro-reasoning": ModelEntry(
+        "Pro Reasoning · OmniRoute", _AGENTIC, 1_048_576
+    ),
+    "omniroute:auto/pro-fast": ModelEntry(
+        "Pro Fast · OmniRoute", _AGENTIC, 1_048_576
+    ),
+    "omniroute:auto/pro-chat": ModelEntry("Pro Chat · OmniRoute", _AGENTIC, 1_048_576),
+    "omniroute:auto/pro-vision": ModelEntry(
+        "Pro Vision · OmniRoute",
+        ModelCapabilities(
+            tools=True, vision=True, parallel_tool_calls=True, streaming=True
+        ),
+        1_048_576
+    ),
+    # Individual provider models via OmniRoute (selected free/popular ones)
+    "omniroute:oc/deepseek-v4-flash-free": ModelEntry(
+        "DeepSeek V4 Flash Free · OmniRoute", _AGENTIC, 1_000_000
+    ),
+    "omniroute:oc/mimo-v2.5-free": ModelEntry(
+        "MiMo v2.5 Free · OmniRoute",
+        ModelCapabilities(
+            tools=True, vision=True, parallel_tool_calls=True, streaming=True
+        ),
+        1_048_576
+    ),
+    "omniroute:oc/hy3-free": ModelEntry("HY3 Free · OmniRoute", _AGENTIC, 200_000),
+    "omniroute:oc/nemotron-3-ultra-free": ModelEntry(
+        "Nemotron 3 Ultra Free · OmniRoute", _AGENTIC, 200_000
+    ),
+    "omniroute:oc/north-mini-code-free": ModelEntry(
+        "North Mini Code Free · OmniRoute", _AGENTIC, 200_000
+    ),
+    "omniroute:ddgw/gpt-5.4-mini": ModelEntry(
+        "GPT-5.4 Mini · OmniRoute (DuckDuckGo)",
+        ModelCapabilities(
+            tools=False, vision=True, parallel_tool_calls=True, streaming=True
+        ),
+        409_600
+    ),
+    "omniroute:felo/felo-chat": ModelEntry("Felo Chat · OmniRoute", _AGENTIC, 128_000),
+    "omniroute:felo/felo-search": ModelEntry("Felo Search · OmniRoute", _AGENTIC, 128_000),
+    "omniroute:felo/felo-scholar": ModelEntry("Felo Scholar · OmniRoute", _AGENTIC, 128_000),
+    "omniroute:felo/felo-document": ModelEntry("Felo Document · OmniRoute", _AGENTIC, 128_000),
+    "omniroute:felo/felo-social": ModelEntry("Felo Social · OmniRoute", _AGENTIC, 128_000),
+    "omniroute:aug/gemini-3.1-pro-preview": ModelEntry(
+        "Gemini 3.1 Pro · OmniRoute (Auggie)",
+        ModelCapabilities(
+            tools=True, vision=True, parallel_tool_calls=True, streaming=True
+        ),
+        1_000_000
+    ),
+    "omniroute:aug/kimi-k2.6": ModelEntry(
+        "Kimi K2.6 · OmniRoute (Auggie)",
+        ModelCapabilities(
+            tools=True, vision=True, parallel_tool_calls=True, streaming=True
+        ),
+        131_000
+    ),
+    "omniroute:aug/kimi-k2.7": ModelEntry(
+        "Kimi K2.7 Code · OmniRoute (Auggie)",
+        ModelCapabilities(
+            tools=True, vision=True, parallel_tool_calls=True, streaming=True
+        ),
+        131_000
+    ),
+    "omniroute:aug/glm-5.2": ModelEntry(
+        "GLM 5.2 · OmniRoute (Auggie)",
+        ModelCapabilities(
+            tools=True, vision=False, parallel_tool_calls=True, streaming=True
+        ),
+        1_000_000
+    ),
+    "omniroute:aug/prism-a": ModelEntry(
+        "Prism (Claude + Gemini) · OmniRoute (Auggie)", _AGENTIC, 200_000
+    ),
+    "omniroute:aug/prism-b": ModelEntry(
+        "Prism (GPT + Kimi) · OmniRoute (Auggie)", _AGENTIC, 200_000
+    ),
+    "omniroute:oc/nemotron-3-ultra-free": ModelEntry(
+        "Nemotron 3 Ultra Free · OmniRoute", _AGENTIC, 200_000
+    ),
+    "omniroute:oc/mimo-v2.5-free": ModelEntry(
+        "MiMo v2.5 Free · OmniRoute",
+        ModelCapabilities(
+            tools=True, vision=True, parallel_tool_calls=True, streaming=True
+        ),
+        1_048_576
+    ),
+    "omniroute:oc/hy3-free": ModelEntry("HY3 Free · OmniRoute", _AGENTIC, 200_000),
+    "omniroute:oc/north-mini-code-free": ModelEntry(
+        "North Mini Code Free · OmniRoute", _AGENTIC, 200_000
+    ),
+    "omniroute:mcode/mimo-auto": ModelEntry(
+        "MiMo Auto · OmniRoute (MiMoCode)",
+        ModelCapabilities(
+            tools=True, vision=False, parallel_tool_calls=True, streaming=True
+        ),
+        1_000_000
+    ),
+    "omniroute:tllm/gpt-5.4": ModelEntry(
+        "GPT-5.4 · OmniRoute (TheOldLLM)", _AGENTIC, 400_000
+    ),
+    "omniroute:tllm/gpt-5.3": ModelEntry(
+        "GPT-5.3 · OmniRoute (TheOldLLM)", _AGENTIC, 400_000
+    ),
+    "omniroute:tllm/gpt-5.2": ModelEntry(
+        "GPT-5.2 · OmniRoute (TheOldLLM)", _AGENTIC, 400_000
+    ),
+    "omniroute:tllm/gpt-5.1": ModelEntry(
+        "GPT-5.1 · OmniRoute (TheOldLLM)", _AGENTIC, 400_000
+    ),
+    "omniroute:tllm/gpt-5": ModelEntry("GPT-5 · OmniRoute (TheOldLLM)", _AGENTIC, 400_000),
+    "omniroute:tllm/claude_opus_4": ModelEntry(
+        "Claude Opus 4 · OmniRoute (TheOldLLM)", _AGENTIC, 200_000
+    ),
+    "omniroute:tllm/claude_sonnet_4": ModelEntry(
+        "Claude Sonnet 4 · OmniRoute (TheOldLLM)", _AGENTIC, 200_000
+    ),
+    "omniroute:tllm/claude_haiku_3_5": ModelEntry(
+        "Claude Haiku 3.5 · OmniRoute (TheOldLLM)", _AGENTIC, 200_000
+    ),
+    "omniroute:tllm/deepseek_v4": ModelEntry(
+        "DeepSeek V4 · OmniRoute (TheOldLLM)", _AGENTIC, 200_000
+    ),
+    "omniroute:tllm/gemini_3_flash": ModelEntry(
+        "Gemini 3 Flash · OmniRoute (TheOldLLM)", _AGENTIC, 1_000_000
+    ),
+    "omniroute:tllm/sonar-pro": ModelEntry(
+        "Sonar Pro · OmniRoute (TheOldLLM)", _AGENTIC, 200_000
+    ),
+    "omniroute:mcode/mimo-auto": ModelEntry(
+        "MiMo Auto · OmniRoute (MiMoCode)",
+        ModelCapabilities(
+            tools=True, vision=False, parallel_tool_calls=True, streaming=True
+        ),
+        1_000_000
     ),
     # -- cloud accounts (models running in the user's own AWS/GCP) ----------------
     # Bedrock ids carry a family segment (claude/ → native Anthropic path, other/ →

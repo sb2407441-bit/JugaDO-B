@@ -400,7 +400,14 @@ class SessionManager:
             ws = record.workspace or None
             model, mode, messages = record.model, Mode(record.mode), record.messages
         else:
-            ws = self.resolve_workspace(workspace) if ag.needs_workspace else None
+            # Knowledge surfaces are orphan by default: without an EXPLICITLY requested folder
+            # they get a per-conversation scratch dir below — never the server's seed workspace
+            # (which may be the product's own source tree). Only gated/code surfaces (and
+            # explicit `workspace` args from automation/mention callers) resolve to the seed.
+            if ag.needs_workspace and ag.family == "knowledge" and not workspace:
+                ws = None
+            else:
+                ws = self.resolve_workspace(workspace) if ag.needs_workspace else None
             model, mode, messages = self.model, self.mode, None
 
         if ag.needs_workspace and (not ws or not Path(ws).is_dir()):
@@ -1647,8 +1654,11 @@ class SessionManager:
 
     def _load_prefs(self) -> dict[str, Any]:
         try:
-            return json.loads(self._prefs_path().read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            prefs = json.loads(self._prefs_path().read_text(encoding="utf-8"))
+            print(f"[DEBUG] Loaded prefs from {self._prefs_path()}: default_model={prefs.get('default_model')}")
+            return prefs
+        except (OSError, json.JSONDecodeError) as e:
+            print(f"[DEBUG] Failed to load prefs from {self._prefs_path()}: {e}")
             return {}
 
     def _save_prefs(self) -> None:

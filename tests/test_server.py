@@ -483,6 +483,28 @@ def test_standalone_server_token_file_is_user_only(tmp_path, monkeypatch):
         os.environ.pop("COWORKER_API_TOKEN", None)
 
 
+def test_standalone_server_token_stable_across_restarts(tmp_path, monkeypatch):
+    import os
+
+    from coworker.server import run as server_run
+
+    monkeypatch.delenv("COWORKER_API_TOKEN", raising=False)
+    first = server_run._ensure_api_token(9876)
+    first_token = os.environ["COWORKER_API_TOKEN"]
+    # Simulate a server restart: the same process (or a new one) calls the mint again.
+    os.environ.pop("COWORKER_API_TOKEN", None)
+    second = server_run._ensure_api_token(9876)
+    try:
+        # The token is reused, not regenerated — a dev GUI that baked the file value at
+        # `vite dev` startup keeps working across server restarts (was 401 before).
+        assert os.environ["COWORKER_API_TOKEN"] == first_token
+        assert second == first
+        assert second.read_text(encoding="utf-8").strip() == first_token
+    finally:
+        second.unlink(missing_ok=True)
+        os.environ.pop("COWORKER_API_TOKEN", None)
+
+
 def test_ws_error_persists_notice_and_retry_reruns(tmp_path):
     class FlakyProvider(ProviderClient):
         def __init__(self):

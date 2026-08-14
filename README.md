@@ -1,26 +1,46 @@
-# JugaDO-B — User-Governed AI Operations & Businesses
+# JugaDO-B — Governed AI Operating System
 
-JugaDO-B is a governed AI operating system built on the OpenWorker runtime. This workspace is a
-self-contained OpenWorker source tree enhanced with the Agency Agents roster
-and a governed corporate operating system. It combines OpenWorker's local-first desktop runtime,
-approval-gated tools, connectors, scheduling, and memory with Agency specialists, gstack delivery
-methods, Agent Reach internet research, and Context7 documentation guidance.
+JugaDO-B is a governed AI operating system built on the OpenWorker runtime. It operates as a virtual company with specialist AI departments that collaborate through structured handoffs, approval gates, and a quality-gated delivery pipeline. Every task enters a systematic funnel: Intake → Triage → Route → Plan → Build → QA → Deliver → Learn. Bring your own model keys and tools — everything runs locally on your machine.
 
-**JugaDOB** stands for **Justified, User-Governed, AI-Driven Operations & Businesses**. The name
-honours the resourceful spirit of *jugaad* while adding professional planning, approvals, testing,
-and evidence.
+## What's running
 
-Start here:
+| Layer | What it is | Status |
+|---|---|---|
+| OpenWorker runtime | Python agent engine, approval gates, connectors, memory, MCP | Active |
+| Agency Specialists | 270 role personas across 14 departments | Active |
+| Corporate OS | Intake funnel, routing, quality gates, handoff protocol | Active |
+| Agent Reach | Approval-gated internet research | Connected |
+| gstack | Engineering delivery discipline | Connected |
+| Context7 | Current library/API documentation | Connected |
+| HyperFrames | Video/motion production | Connected |
+| Cognee | AI memory & knowledge graph | Adapter-ready |
+| OmniRoute | Free token routing (290 providers, ~1.53B tokens/mo) | Adapter-ready |
+| browser-use | AI browser automation | Adapter-ready |
+| strix | AI security testing | Adapter-ready |
+| voicebox | Voice I/O & narration | Adapter-ready |
 
-1. Follow the upstream development setup in **Run from source** below.
-2. Preview the focused roster: `powershell -ExecutionPolicy Bypass -File .\scripts\install-agency-personas.ps1`.
-3. Generate, install, and enable the complete Agency roster: `powershell -ExecutionPolicy Bypass -File .\scripts\install-agency-personas.ps1 -All -Approve`.
-4. Read [PERSONAS.md](PERSONAS.md) for the core/full roster, [INTEGRATIONS.md](INTEGRATIONS.md) for Agent Reach and gstack, and [`.opencode/README.md`](.opencode/README.md) for on-demand OpenCode agents.
-5. Read [RESOURCE-SETUP.md](RESOURCE-SETUP.md) for the clean `D:\Resources` resource-store model and HyperFrames connection.
-6. Read [corporation/RESOURCE-CAPABILITY-MAP.md](corporation/RESOURCE-CAPABILITY-MAP.md) to see how the remaining resource repos map to departments and which ones are approval-gated.
+## Start here
 
-The source prompts are vendored locally, so this project works without relying on the original
-`D:\Resources` folders after setup.
+1. Set up the OpenWorker runtime — follow **Run from source** below
+2. Switch to the **Corporate Chief of Staff** persona to use the full team
+3. Read `corporation/TEAM.md` to see the roster and load triggers
+4. Read `corporation/HANDOFF-PROTOCOL.md` to understand how work is handed off
+5. Read `INTEGRATIONS.md` for how to activate adapter-ready integrations
+6. Read `RESOURCE-SETUP.md` for the `D:\Resources` store and HyperFrames prerequisites
+
+## Key governance files
+
+| File | Purpose |
+|---|---|
+| `AGENTS.md` | Master workspace config — read by OpenWorker at startup |
+| `corporation/TEAM.md` | Active roster, roles, and load triggers |
+| `corporation/ROUTING.md` | Domain-to-persona routing table |
+| `corporation/OPERATING_SYSTEM.md` | Professional delivery funnel |
+| `corporation/HANDOFF-PROTOCOL.md` | Handoff brief format and rules |
+| `corporation/QUALITY-GATES.md` | Per-task-type quality checklists |
+| `corporation/COLLABORATION.md` | Task patterns and team norms |
+| `INTEGRATIONS.md` | Integration catalog and activation guides |
+| `RESOURCE-SETUP.md` | D:\Resources store setup |
 
 ---
 

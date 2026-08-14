@@ -182,6 +182,19 @@ def _build_ollama(profile: dict[str, Any], secrets: Any) -> ProviderClient:
     return OpenAIProvider(api_key="ollama", base_url=base_url)
 
 
+def _openai_keyless(vendor: str, default_base_url: str):
+    """Builder for keyless OpenAI-compatible endpoints (e.g. LLM7's free tier — no signup,
+    no key). The OpenAI SDK still requires a non-empty auth string, so we pass a placeholder
+    (same pattern as the Ollama builder). `needs_key=False` keeps the provider usable out of
+    the box; the optional `base_url` field lets a user point at a regional/variante mirror."""
+
+    def build(profile: dict[str, Any], secrets: Any) -> ProviderClient:
+        base_url = ((profile or {}).get("base_url") or "").strip() or default_base_url
+        return OpenAIProvider(api_key="keyless", base_url=base_url)
+
+    return build
+
+
 def _openai_compat(vendor: str, default_base_url: str, env_key: Optional[str] = None):
     """Builder factory for vendors reached through their OpenAI-compatible API (Z AI, DeepSeek,
     Kimi, MiniMax, Qwen, xAI, Mistral). The key is resolved from the vendor's OWN profile (or its
@@ -520,9 +533,33 @@ DESCRIPTORS: list[ProviderDescriptor] = [
         endpoint_help="Prefilled with the Meta Model API endpoint (public preview, US-only as of 2026-07).",
     ),
     # Resellers: many labs' models behind one key, using THEIR model namespaces (the curated
-    # ids + display labels live in providers/matrix.py). TODO: add Groq here (+ its matrix
-    # rows) once the current provider surface is tested — deliberately deferred to bound
-    # how much needs verifying at once (owner call, 2026-07-04).
+    # ids + display labels live in providers/matrix.py). Groq/Cerebras/Hugging Face added
+    # 2026-08-14 (free-tier providers, OpenAI-compatible surface) — ids verified against
+    # their live /models catalogs.
+    _compat(
+        "groq",
+        "Groq",
+        base_url="https://api.groq.com/openai/v1",
+        recommended_model="llama-3.3-70b-versatile",
+        env_key="GROQ_API_KEY",
+        endpoint_help="GroqCloud's OpenAI-compatible endpoint. Free tier is rate-limited per model (30 RPM, ~12K TPM); use OmniRoute fallback for bursts.",
+    ),
+    _compat(
+        "cerebras",
+        "Cerebras",
+        base_url="https://api.cerebras.ai/v1",
+        recommended_model="gpt-oss-120b",
+        env_key="CEREBRAS_API_KEY",
+        endpoint_help="Cerebras' OpenAI-compatible endpoint. $5 free trial credits after signup; ~3000 tok/s.",
+    ),
+    _compat(
+        "huggingface",
+        "Hugging Face",
+        base_url="https://router.huggingface.co/v1",
+        recommended_model="openai/gpt-oss-120b",
+        env_key="HF_TOKEN",
+        endpoint_help="HF Inference Providers' unified OpenAI-compatible gateway — routes to Groq, Together, Fireworks, Cerebras and more from one key.",
+    ),
     _compat(
         "together",
         "Together AI",
@@ -531,11 +568,53 @@ DESCRIPTORS: list[ProviderDescriptor] = [
         env_key="TOGETHER_API_KEY",
     ),
     _compat(
-        "fireworks",
-        "Fireworks AI",
-        base_url="https://api.fireworks.ai/inference/v1",
-        recommended_model="accounts/fireworks/models/glm-5p2",
-        env_key="FIREWORKS_API_KEY",
+        "together",
+        "Together AI",
+        base_url="https://api.together.xyz/v1",
+        recommended_model="zai-org/GLM-5.2",
+        env_key="TOGETHER_API_KEY",
+    ),
+    # Free-tier, no-signup (keyless) gateway — same endpoint opencode's config uses. Verified
+    # live 2026-08-14: plain `Bearer keyless` works, native tool-calling included. More LLM7
+    # models unlock with a free token from https://token.llm7.io.
+    ProviderDescriptor(
+        name="llm7",
+        title="LLM7 (free, keyless)",
+        needs_key=False,
+        fields=[
+            ProviderField(
+                "base_url",
+                "Endpoint",
+                secret=False,
+                required=False,
+                default="https://api.llm7.io/v1",
+                placeholder="https://api.llm7.io/v1",
+                help="Keyless free tier — no signup, no key. Optional paid tier models unlock with a token.",
+            ),
+        ],
+        build=_openai_keyless("LLM7", "https://api.llm7.io/v1"),
+        recommended_model="gemini-3.1-flash-lite",
+        blurb="Keyless free gateway (no signup). Verified working for chat + tool calls.",
+    ),
+# SambaNova Cloud — OpenAI-compatible free tier (no card). Key from cloud.sambanova.ai
+    # (opencode's /connect flow). Same ids as the opencode config.
+    _compat(
+        "sambanova",
+        "SambaNova (free tier)",
+        base_url="https://api.sambanova.ai/v1",
+        recommended_model="DeepSeek-V3.2",
+        env_key="SAMBANOVA_API_KEY",
+        endpoint_help="Free tier — no card needed. Get a token from cloud.sambanova.ai, then paste it here.",
+    ),
+    # OmniRoute — local gateway for 290+ providers with auto-fallback, compression, free tiers.
+    # Run `npm run dev` in D:\Resources\OmniRoute (port 20128). Uses API key from dashboard.
+    _compat(
+        "omniroute",
+        "OmniRoute (local gateway)",
+        base_url="http://127.0.0.1:20128/v1",
+        recommended_model="auto/best-free",
+        env_key="OMNIROUTE_API_KEY",
+        endpoint_help="Local OmniRoute gateway — 290+ providers, auto-fallback, RTK+Caveman compression, free tiers. Start from D:\\Resources\\OmniRoute.",
     ),
     _compat(
         "openrouter",

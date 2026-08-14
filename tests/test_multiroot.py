@@ -239,6 +239,33 @@ def test_add_and_remove_roots_live_and_persisted(tmp_path):
     assert str(ro.resolve()) not in persisted
 
 
+def test_knowledge_session_orphan_never_seed_workspace(tmp_path):
+    """Regression: a new knowledge session with no explicit folder must provision scratch —
+    it must NOT adopt the manager's seed workspace (which, via `--cwd`, can be the product's
+    own source tree — the "agent edits its own source" hazard)."""
+    from coworker.server.manager import SessionManager
+
+    seed = tmp_path / "seed_ws"
+    seed.mkdir()
+    mgr = SessionManager(data_dir=tmp_path / "data", workspace=seed)
+    mgr._prefs["scratch_base"] = str(tmp_path / "scratchbase")
+
+    orphan = mgr.get_engine("orphan-sess", agent="cowork")
+    assert orphan is not None
+    roots = mgr.get_roots("orphan-sess")
+    primary = Path(roots[0]["path"]).resolve()
+    assert primary.is_relative_to((tmp_path / "scratchbase").resolve())
+    assert primary != seed.resolve()  # never the seed/source workspace
+
+    # an explicitly requested folder still wins (it becomes the session's primary root)
+    edit = tmp_path / "edit"
+    edit.mkdir()
+    explicit = mgr.get_engine("explicit-sess", agent="cowork", workspace=str(edit))
+    assert explicit is not None
+    explicit_roots = mgr.get_roots("explicit-sess")
+    assert Path(explicit_roots[0]["path"]).resolve() == edit.resolve()
+
+
 def test_add_root_before_first_turn_persists(tmp_path):
     """Adding a folder on a brand-new conversation (no record, no engine yet) must survive:
     the manager creates a minimal cowork record so the grant isn't lost (GUI start panel).

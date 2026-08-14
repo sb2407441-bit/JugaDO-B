@@ -30,6 +30,8 @@ export type IconName =
   | "audit"
   | "chevronRight"
   | "chevronDown"
+  | "chevronUp"
+  | "chevronLeft"
   | "moreHorizontal"
   | "pin"
   | "archive"
@@ -317,6 +319,18 @@ export function Icon({
       return (
         <svg {...s}>
           <path d="m6 9 6 6 6-6" />
+        </svg>
+      );
+    case "chevronUp":
+      return (
+        <svg {...s}>
+          <path d="m18 15-6-6-6 6" />
+        </svg>
+      );
+    case "chevronLeft":
+      return (
+        <svg {...s}>
+          <path d="m15 18-6-6 6-6" />
         </svg>
       );
     case "moreHorizontal":

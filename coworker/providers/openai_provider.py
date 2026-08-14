@@ -74,6 +74,53 @@ def _strip_foreign_sidecars(messages: list[dict[str, Any]]) -> list[dict[str, An
     ]
 
 
+def _sanitize_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Outgoing message hygiene for the OpenAI wire: strip foreign sidecars AND guarantee
+    unique assistant tool-call ids.
+
+    Some compat backends (e.g. HF gateway models) emit repeated ids like `call_0` for every
+    tool call; once tool results ride the history, the next request carries two assistant
+    `tool_calls` sharing one id plus two `tool` messages pointing at it, and the server
+    rejects the chat template ("Multiple tool calls with the same id"). We renumber dupes
+    deterministically and remap the matching `tool` messages IN ORDER (the engine appends
+    results in call order), so the same history works on any backend."""
+    out: list[dict[str, Any]] = []
+    used: set[str] = set()
+    # old-id → new-ids in call order (first kept, later ones renumbered). Tool results
+    # consume from the front, so the n-th result pairs with the n-th call of that id.
+    remap: dict[str, list[str]] = {}
+
+    for m in messages:
+        if any(k.startswith("_") for k in m):
+            m = _strip_foreign_sidecars([m])[0]
+        role = m.get("role")
+        if role == "assistant" and m.get("tool_calls"):
+            new_calls = []
+            for tc in m["tool_calls"]:
+                tc = dict(tc)
+                old = tc.get("id", "")
+                if old and old not in used:
+                    nid = old
+                else:
+                    nid = old or f"call_{len(used)}"
+                    k = 1
+                    while nid in used:
+                        nid = f"{old or 'call'}_{k}"
+                        k += 1
+                if old:
+                    remap.setdefault(old, []).append(nid)
+                used.add(nid)
+                tc["id"] = nid
+                new_calls.append(tc)
+            m = {**m, "tool_calls": new_calls}
+        elif role == "tool" and m.get("tool_call_id") in remap:
+            queue = remap[m["tool_call_id"]]
+            if queue:
+                m = {**m, "tool_call_id": queue.pop(0)}
+        out.append(m)
+    return out
+
+
 _MAX_TOKENS_ERROR = "'max_tokens' is not supported"
 
 
@@ -168,7 +215,7 @@ class OpenAIProvider(ProviderClient):
     ) -> AssistantTurn:
         kwargs: dict[str, Any] = {
             "model": model,
-            "messages": _strip_foreign_sidecars(messages),
+            "messages": _sanitize_messages(messages),
             **settings,
         }
         if tools:
@@ -188,7 +235,9 @@ class OpenAIProvider(ProviderClient):
         choice = response.choices[0]
         message = choice.message
         text = getattr(message, "content", None)
-        tool_calls = _parse_tool_calls(getattr(message, "tool_calls", None))
+        tool_calls = _unique_call_ids(
+            _parse_tool_calls(getattr(message, "tool_calls", None))
+        )
         text, tool_calls = _maybe_salvage_tool_calls(text, tool_calls, tools=tools)
         return AssistantTurn(
             text=text,
@@ -212,7 +261,7 @@ class OpenAIProvider(ProviderClient):
     ):
         kwargs: dict[str, Any] = {
             "model": model,
-            "messages": _strip_foreign_sidecars(messages),
+            "messages": _sanitize_messages(messages),
             "stream": True,
             # Usage on the final chunk (empty `choices`). Compat servers that reject
             # the option get a one-shot retry without it (_param_fix_retry).
@@ -282,6 +331,7 @@ class OpenAIProvider(ProviderClient):
             tool_calls.append(
                 ToolCall(id=acc["id"], name=acc["name"], arguments=arguments)
             )
+        tool_calls = _unique_call_ids(tool_calls)
 
         text, tool_calls = _maybe_salvage_tool_calls(
             "".join(text_parts) or None, tool_calls, tools=tools
@@ -295,6 +345,25 @@ class OpenAIProvider(ProviderClient):
                 usage=usage,
             )
         )
+
+
+def _unique_call_ids(tool_calls: list[ToolCall]) -> list[ToolCall]:
+    """Guarantee unique, non-empty ids across a batch of parsed tool calls. Some compat
+    models emit the same id (`call_0`) for every call; the engine keys tool results off the
+    id, and duplicates break the NEXT request's chat template, so renumber here."""
+    seen: set[str] = set()
+    out: list[ToolCall] = []
+    for i, c in enumerate(tool_calls):
+        tid = c.id or f"call_{c.name or i}"
+        if tid in seen:
+            n = 1
+            base = tid
+            while f"{base}_{n}" in seen:
+                n += 1
+            tid = f"{base}_{n}"
+        seen.add(tid)
+        out.append(ToolCall(id=tid, name=c.name, arguments=c.arguments))
+    return out
 
 
 def _parse_tool_calls(raw_tool_calls: Any) -> list[ToolCall]:

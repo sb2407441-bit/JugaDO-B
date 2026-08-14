@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from coworker.providers import (
     AssistantTurn,
     ModelCapabilities,
@@ -146,6 +148,124 @@ def test_router_capabilities_prefix_aware():
     router = ProviderRouter(secrets=None)
     assert router.capabilities("ollama:qwen2.5-coder").tools is True
     assert router.capabilities("ollama:qwen2.5-coder").parallel_tool_calls is False
+
+
+# -- router fallback chains ------------------------------------------------------
+class _Failing(ProviderClient):
+    """A client that records calls then raises before producing anything."""
+
+    def __init__(self, name: str, exc: Exception):
+        self.name = name
+        self.exc = exc
+        self.models: list[str] = []
+
+    def complete(self, *, model, messages, tools=None, **settings):
+        self.models.append(model)
+        raise self.exc
+
+    def stream(self, *, model, messages, tools=None, **settings):
+        self.models.append(model)
+        raise self.exc
+
+    def capabilities(self, model):
+        return ModelCapabilities()
+
+
+def _patch_build_map(monkeypatch, mapping):
+    """fake_build returning a per-provider instance; unknown providers fall back to _Recorder."""
+
+    def fake_build(name, profile, secrets):
+        return mapping.get(name, _Recorder(name))
+
+    monkeypatch.setattr("coworker.providers.router.build_provider_client", fake_build)
+
+
+def test_router_chain_split():
+    r = ProviderRouter(secrets=None)
+    assert r._chain("gemini:a,groq:b,mistral:c") == ["gemini:a", "groq:b", "mistral:c"]
+    assert r._chain("  gemini:a ,  groq:b  ") == ["gemini:a", "groq:b"]
+    assert r._chain("gpt-5.5") == ["gpt-5.5"]
+    assert r._chain("") == [""]
+
+
+def test_router_chain_falls_back_in_order(monkeypatch):
+    gemini = _Failing("gemini", RuntimeError("quota exceeded"))
+    mistral = _Recorder("mistral")
+    _patch_build_map(monkeypatch, {"gemini": gemini, "mistral": mistral})
+    router = ProviderRouter(secrets=None)
+
+    turn = router.complete(
+        model="gemini:gemini-3.6-flash,mistral:mistral-large-latest", messages=[]
+    )
+    assert turn.text == "mistral"  # stable (gemini) failed → next in order answered
+    assert gemini.models == ["gemini-3.6-flash"]  # the failing candidate was attempted
+    assert mistral.models == ["mistral-large-latest"]  # prefix stripped on fallback too
+
+
+def test_router_chain_stops_at_first_success(monkeypatch):
+    ok = _Recorder("openai")
+    _patch_build_map(
+        monkeypatch,
+        {"openai": ok, "mistral": _Failing("mistral", RuntimeError("nope"))},
+    )
+    router = ProviderRouter(secrets=None)
+    turn = router.complete(model="gpt-5.5,mistral:y", messages=[])
+    assert turn.text == "openai"  # first candidate succeeded → later ones never touched
+    assert ok.models == ["gpt-5.5"]
+
+
+def test_router_chain_all_fail_raises_last(monkeypatch):
+    _patch_build_map(
+        monkeypatch,
+        {
+            "gemini": _Failing("gemini", RuntimeError("first failed")),
+            "mistral": _Failing("mistral", RuntimeError("last failed")),
+        },
+    )
+    router = ProviderRouter(secrets=None)
+    with pytest.raises(RuntimeError, match="last failed"):
+        router.complete(model="gemini:x,mistral:y", messages=[])
+
+
+def test_router_chain_stream_falls_back_before_first_chunk(monkeypatch):
+    gemini = _Failing("gemini", RuntimeError("rate limited"))
+    mistral = _Recorder("mistral")
+    _patch_build_map(monkeypatch, {"gemini": gemini, "mistral": mistral})
+    router = ProviderRouter(secrets=None)
+
+    chunks = list(router.stream(model="gemini:x,mistral:y", messages=[]))
+    assert chunks and chunks[0].turn.text == "mistral"
+    assert gemini.models == ["x"]  # failed before any output → skipped, tried next
+
+
+def test_router_chain_stream_surfaces_midstream_error(monkeypatch):
+    class _MidStream(ProviderClient):
+        def complete(self, *, model, messages, tools=None, **settings):
+            return AssistantTurn(text="x")
+
+        def stream(self, *, model, messages, tools=None, **settings):
+            yield StreamChunk(text_delta="partial")
+            raise RuntimeError("boom mid-stream")
+
+        def capabilities(self, model):
+            return ModelCapabilities()
+
+    mistral = _Recorder("mistral")
+    _patch_build_map(monkeypatch, {"gemini": _MidStream(), "mistral": mistral})
+    router = ProviderRouter(secrets=None)
+
+    got = []
+    with pytest.raises(RuntimeError, match="mid-stream"):
+        for c in router.stream(model="gemini:x,mistral:y", messages=[]):
+            got.append(c)
+    assert got and got[0].text_delta == "partial"  # output was already flowing
+    assert mistral.models == []  # no fallback after the stream started
+
+
+def test_router_chain_capabilities_uses_first():
+    router = ProviderRouter(secrets=None)
+    caps = router.capabilities("gemini:gemini-3.6-flash,ollama:x")
+    assert caps.vision is True  # first (stable) candidate decides capabilities
 
 
 # -- capabilities ---------------------------------------------------------------
@@ -312,10 +432,15 @@ def test_manager_provider_config(tmp_path, monkeypatch):
 
 def test_manager_curated_models(tmp_path, monkeypatch):
     """No seed list: the picker is the curated matrix filtered to key-holding providers,
-    plus user-added custom ids. A fresh install shows only the (not-yet-usable) default.
+    plus user-added custom ids. A fresh install shows only the (not-yet-usable) default
+    plus keyless providers (Ollama, LLM7) which need no key at all.
     """
     monkeypatch.setenv("COWORKER_STATE_DIR", str(tmp_path / "state"))
-    from coworker.providers.registry import provider_descriptors
+    from coworker.providers.matrix import MATRIX
+    from coworker.providers.registry import (
+        get_descriptor,
+        provider_descriptors,
+    )
 
     for d in provider_descriptors():  # ambient dev-shell keys must not leak in
         if d.env_key:
@@ -329,8 +454,14 @@ def test_manager_curated_models(tmp_path, monkeypatch):
     monkeypatch.setattr(SessionManager, "_ollama_alive", lambda self: True)
 
     mgr = SessionManager(data_dir=tmp_path)
-    # no provider keys → nothing but the always-selectable default
-    assert mgr.get_settings()["models"] == [mgr.model]
+    # no provider keys → only the default plus always-selectable keyless providers
+    keyless = sorted(
+        mid
+        for mid in MATRIX
+        if ":" in mid
+        and (lambda d: d is not None and not d.needs_key)(get_descriptor(mid.split(":", 1)[0]))
+    )
+    assert sorted(mgr.get_settings()["models"]) == sorted([mgr.model, *keyless])
 
     # a provider key unlocks exactly that provider's matrix models
     mgr.set_provider("anthropic", {"api_key": "sk-ant-test"})
