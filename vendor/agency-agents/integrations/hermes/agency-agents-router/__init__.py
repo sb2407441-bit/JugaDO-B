@@ -255,6 +255,61 @@ HUMAN_AI_STATUS_SCHEMA = {
     },
 }
 
+COORD_POLL_DESCRIPTION = (
+    "Poll Human AI's coordination outbox for envelopes addressed to Hermes. "
+    "Used for two-coworker coordination (propose/critique/decision/execute/report). "
+    "Returns pending messages; ack each with human_ai_coord_reply once handled."
+)
+COORD_POLL_SCHEMA = {
+    "name": "human_ai_coord_poll",
+    "description": COORD_POLL_DESCRIPTION,
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "peer": {"type": "string", "description": "Peer whose outbox to poll; default hermes."},
+        },
+        "required": [],
+    },
+}
+
+COORD_REPLY_DESCRIPTION = (
+    "Post a coordination envelope to Human AI's broker (or acknowledge one). "
+    "kind is one of propose, critique, decision, execute, report, aborted. "
+    "Pass env_id + ack=true to acknowledge a polled message. Pass thread_id + kind + body "
+    "to post a new envelope. scope names which laptop owns the operation (hermes|human-ai)."
+)
+COORD_REPLY_SCHEMA = {
+    "name": "human_ai_coord_reply",
+    "description": COORD_REPLY_DESCRIPTION,
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "thread_id": {"type": "string", "description": "Thread identifier (topic slug)."},
+            "kind": {"type": "string", "description": "propose|critique|decision|execute|report|aborted."},
+            "body": {"type": "object", "description": "Free-form payload."},
+            "recipient": {"type": "string", "description": "Recipient peer; default human-ai."},
+            "scope": {"type": "string", "description": "Laptop that owns the operation."},
+            "title": {"type": "string", "description": "Thread title when proposing a new thread."},
+            "env_id": {"type": "string", "description": "Envelope id to ack (when ack=true)."},
+            "ack": {"type": "boolean", "description": "Acknowledge env_id instead of posting."},
+        },
+        "required": [],
+    },
+}
+
+COORD_THREADS_DESCRIPTION = (
+    "List all coordination threads and their envelopes/state on Human AI's broker."
+)
+COORD_THREADS_SCHEMA = {
+    "name": "human_ai_coord_threads",
+    "description": COORD_THREADS_DESCRIPTION,
+    "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+    },
+}
+
 
 def register(ctx):
     def search(args: dict[str, Any], **kwargs) -> str:
@@ -334,7 +389,7 @@ def register(ctx):
                 "delegated": False,
                 "warning": f"delegate_task unavailable: {exc}",
                 "prompt": composed,
-            })
+})
 
     def human_ai_task(args: dict[str, Any], **kwargs) -> str:
         del kwargs
@@ -357,6 +412,38 @@ def register(ctx):
         if not task_id:
             return _json({"success": False, "error": "task_id is required"})
         return _json(_human_ai_request(f"/corporate/tasks/{task_id}"))
+
+    def human_ai_coord_poll(args: dict[str, Any], **kwargs) -> str:
+        del kwargs
+        peer = str(args.get("peer", "hermes")).strip() or "hermes"
+        return _json(_human_ai_request(f"/peers/outbox?peer={peer}"))
+
+    def human_ai_coord_reply(args: dict[str, Any], **kwargs) -> str:
+        del kwargs
+        if bool(args.get("ack", False)):
+            env_id = str(args.get("env_id", "")).strip()
+            if not env_id:
+                return _json({"success": False, "error": "env_id is required when ack=true"})
+            peer = str(args.get("recipient", "hermes")).strip() or "hermes"
+            return _json(_human_ai_request(f"/peers/outbox/{env_id}/ack", {"peer": peer}))
+        payload: dict[str, Any] = {
+            "thread_id": str(args.get("thread_id", "")).strip(),
+            "kind": str(args.get("kind", "")).strip(),
+            "recipient": str(args.get("recipient", "human-ai")).strip() or "human-ai",
+            "body": args.get("body") or {},
+        }
+        for key in ("scope", "title"):
+            value = str(args.get(key, "")).strip()
+            if value:
+                payload[key] = value
+        if not payload["thread_id"] or not payload["kind"]:
+            return _json({"success": False, "error": "thread_id and kind are required to post"})
+        payload["sender"] = "hermes"
+        return _json(_human_ai_request("/peers/messages", payload))
+
+    def human_ai_coord_threads(args: dict[str, Any], **kwargs) -> str:
+        del kwargs
+        return _json(_human_ai_request("/peers/threads"))
 
     ctx.register_tool(
         name="agency_agents_search",
@@ -391,7 +478,7 @@ def register(ctx):
         toolset="human_ai",
         schema=HUMAN_AI_TASK_SCHEMA,
         handler=human_ai_task,
-        description=HUMAN_AI_TASK_DESCRIPTION,
+description=HUMAN_AI_TASK_DESCRIPTION,
     )
     ctx.register_tool(
         name="human_ai_task_status",
@@ -399,4 +486,25 @@ def register(ctx):
         schema=HUMAN_AI_STATUS_SCHEMA,
         handler=human_ai_task_status,
         description=HUMAN_AI_STATUS_DESCRIPTION,
+    )
+    ctx.register_tool(
+        name="human_ai_coord_poll",
+        toolset="human_ai",
+        schema=COORD_POLL_SCHEMA,
+        handler=human_ai_coord_poll,
+        description=COORD_POLL_DESCRIPTION,
+    )
+    ctx.register_tool(
+        name="human_ai_coord_reply",
+        toolset="human_ai",
+        schema=COORD_REPLY_SCHEMA,
+        handler=human_ai_coord_reply,
+        description=COORD_REPLY_DESCRIPTION,
+    )
+    ctx.register_tool(
+        name="human_ai_coord_threads",
+        toolset="human_ai",
+        schema=COORD_THREADS_SCHEMA,
+        handler=human_ai_coord_threads,
+        description=COORD_THREADS_DESCRIPTION,
     )

@@ -186,6 +186,12 @@ class SessionManager:
         # process singleton so agents.get_agent resolves persona ids (incl. third-party) here.
         self.personas = PersonaRegistry(state_path=base / "personas.json")
         set_persona_registry(self.personas)
+        # Two-coworker coordination broker: typed peer messages between Hermes (edge)
+        # and Human AI (executor), persisted next to the other sidecar state. The
+        # broadcaster hooks the app-wide /ws/events stream so both dashboards update live.
+        from .coordinator import Coordinator
+
+        self.coordinator = Coordinator(base, broadcaster=self._broadcast_coordination)
         # Inbox (cross-session human-attention queue), routing (named inboxes + Slack/Telegram
         # bindings), the Unattended toggle, and self-wake records.
         self.inbox = InboxStore(base / "inbox.json")
@@ -2537,6 +2543,10 @@ class SessionManager:
                 await cb(message)
             except Exception:
                 self.unregister_event_client(cb)
+
+    async def _broadcast_coordination(self, message: dict) -> None:
+        """Bridge the Coordinator's change hook onto the app-wide event stream."""
+        await self.broadcast_event(message)
 
     def register_session_client(self, session_id: str, send_cb: Any) -> None:
         self._session_clients.setdefault(session_id, set()).add(send_cb)

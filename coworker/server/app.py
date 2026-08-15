@@ -751,7 +751,7 @@ def create_app(manager: SessionManager) -> FastAPI:
         resolution = str(body.get("resolution", "deny"))
         if not item_id:
             return JSONResponse(
-                {"ok": False, "error": "item_id is required"}, status_code=400
+{"ok": False, "error": "item_id is required"}, status_code=400
             )
         if not any(item.id == item_id for item in manager.inbox.list(session_id=task_id)):
             return JSONResponse(
@@ -759,6 +759,45 @@ def create_app(manager: SessionManager) -> FastAPI:
                 status_code=404,
             )
         return {"ok": await manager.resolve_inbox(item_id, resolution)}
+
+    # -- peer coordination broker ---------------------------------------------
+    # Two-coworker coordination: Hermes (edge) and Human AI (executor) exchange
+    # typed propose/critique/decision/execute/report envelopes on named threads.
+    # Every mutation broadcasts coordination_updated over /ws/events so both
+    # laptops' dashboards update live. Read/write via the same sidecar token.
+
+    @app.post("/v1/peers/threads")
+    async def peer_threads() -> dict[str, Any]:
+        return {"ok": True, "threads": manager.coordinator.threads()}
+
+    @app.get("/v1/peers/threads")
+    def peer_threads_get() -> dict[str, Any]:
+        return {"ok": True, "threads": manager.coordinator.threads()}
+
+    @app.post("/v1/peers/messages")
+    async def peer_post(body: dict) -> dict[str, Any]:
+        return await manager.coordinator.post(
+            thread_id=str(body.get("thread_id", "")).strip(),
+            kind=str(body.get("kind", "")).strip(),
+            sender=str(body.get("sender", "hermes")).strip() or "hermes",
+            recipient=str(body.get("recipient", "human-ai")).strip() or "human-ai",
+            body=body.get("body") or {},
+            scope=str(body.get("scope", "")).strip(),
+            title=str(body.get("title", "")).strip(),
+        )
+
+    @app.get("/v1/peers/outbox")
+    def peer_outbox(peer: str = "hermes") -> dict[str, Any]:
+        return {
+            "ok": True,
+            "peer": peer,
+            "messages": manager.coordinator.outbox(peer),
+        }
+
+    @app.post("/v1/peers/outbox/{env_id}/ack")
+    async def peer_ack(env_id: str, body: dict) -> dict[str, Any]:
+        peer = str(body.get("peer", "hermes")).strip() or "hermes"
+        return await manager.coordinator.ack(peer, env_id)
 
     @app.get("/v1/models")
     def models_list() -> dict[str, Any]:

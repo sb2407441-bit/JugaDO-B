@@ -50,6 +50,9 @@ def main() -> int:
             "agency_agents_delegate",
             "human_ai_task",
             "human_ai_task_status",
+            "human_ai_coord_poll",
+            "human_ai_coord_reply",
+            "human_ai_coord_threads",
         }
         assert set(ctx.tools) == expected_tools
 
