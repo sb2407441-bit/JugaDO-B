@@ -21,6 +21,10 @@ Model discovery is available at `GET /v1/models`. Use this stable target for Wha
 omniroute:oc/nemotron-3-ultra-free
 ```
 
+`POST /v1/chat/completions` supports both buffered JSON responses and OpenAI SSE responses when
+`stream: true` is sent. SSE ends with `data: [DONE]`; if an upstream stream is empty, Human AI
+falls back to one buffered provider call and still returns a valid SSE sequence.
+
 Configure Hermes' primary model as a custom OpenAI-compatible endpoint:
 
 ```yaml
