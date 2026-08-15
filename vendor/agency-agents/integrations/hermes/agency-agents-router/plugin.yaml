@@ -6,3 +6,5 @@ provides_tools:
   - agency_agents_inspect
   - agency_agents_load
   - agency_agents_delegate
+  - human_ai_task
+  - human_ai_task_status

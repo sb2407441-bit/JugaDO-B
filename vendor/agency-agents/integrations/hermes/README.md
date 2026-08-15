@@ -15,6 +15,8 @@ Generated agent count: 270
 - `agency_agents_inspect` — inspect one specialist's metadata or full body.
 - `agency_agents_load` — compose one specialist prompt for the current task.
 - `agency_agents_delegate` — delegate through Hermes `delegate_task` when available.
+- `human_ai_task` — submit work to the private Human AI corporate control plane.
+- `human_ai_task_status` — poll a Human AI task for messages, approvals, and artifacts.
 
 Each tool is registered with Hermes' complete function-tool schema, including
 its name, description, and JSON `parameters`. The available arguments are:
@@ -25,6 +27,8 @@ its name, description, and JSON `parameters`. The available arguments are:
 | `agency_agents_inspect` | `agent` or `slug`, optional `include_body` |
 | `agency_agents_load` | `agent` or `slug`, optional `task` |
 | `agency_agents_delegate` | `agent` or `slug`, `task` (required), optional `toolsets` |
+| `human_ai_task` | `message` (required), optional `agent`, `model`, `sender_id` |
+| `human_ai_task_status` | `task_id` (required) |
 
 A normal flow is: search by capability, take a returned `slug`, then inspect,
 load, or delegate to that specialist. You can ask Hermes to do this in natural
@@ -77,3 +81,15 @@ Restart Hermes or start a new session after installing so the plugin and its
 tool schemas are loaded. If Hermes displays these tools without their documented
 arguments, regenerate and reinstall the plugin from the latest Agency Agents
 checkout, then restart Hermes.
+
+## Human AI bridge configuration
+
+Set these environment variables on the Hermes laptop before starting Hermes:
+
+```text
+HUMAN_AI_BASE_URL=http://human-ai.local:8765
+HUMAN_AI_API_TOKEN=<contents of the Human AI sidecar token file>
+```
+
+`HUMAN_AI_BASE_URL` defaults to the LAN address above. The plugin only submits
+task messages and polls task results; it does not read either laptop's filesystem.

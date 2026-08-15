@@ -48,6 +48,8 @@ def main() -> int:
             "agency_agents_inspect",
             "agency_agents_load",
             "agency_agents_delegate",
+            "human_ai_task",
+            "human_ai_task_status",
         }
         assert set(ctx.tools) == expected_tools
 
@@ -73,6 +75,17 @@ def main() -> int:
         )
         assert inspected["success"] is True
         assert inspected["agent"]["slug"] == slug
+
+        missing_config = json.loads(
+            ctx.tools["human_ai_task"]["handler"]({"message": "test"})
+        )
+        assert missing_config["success"] is False
+        assert "HUMAN_AI_API_TOKEN" in missing_config["error"]
+
+        missing_task_id = json.loads(
+            ctx.tools["human_ai_task_status"]["handler"]({})
+        )
+        assert missing_task_id == {"success": False, "error": "task_id is required"}
 
     print("PASSED: generated Hermes plugin schemas and routing behavior are valid.")
     return 0

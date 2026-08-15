@@ -102,6 +102,8 @@ def plugin_yaml() -> str:
           - agency_agents_inspect
           - agency_agents_load
           - agency_agents_delegate
+          - human_ai_task
+          - human_ai_task_status
         """
     ).lstrip()
 
@@ -112,7 +114,10 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -219,6 +224,34 @@ def _json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
+def _human_ai_request(path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    base_url = os.environ.get("HUMAN_AI_BASE_URL", "http://human-ai.local:8765").rstrip("/")
+    token = os.environ.get("HUMAN_AI_API_TOKEN", "").strip()
+    if not token:
+        return {"success": False, "error": "HUMAN_AI_API_TOKEN is not configured"}
+
+    body = None if payload is None else json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        f"{base_url}/v1{path}",
+        data=body,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        method="POST" if body is not None else "GET",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            result = json.loads(response.read().decode("utf-8"))
+        return result if isinstance(result, dict) else {"success": False, "error": "invalid bridge response"}
+    except urllib.error.HTTPError as exc:
+        return {"success": False, "error": f"Human AI bridge returned HTTP {exc.code}"}
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        return {"success": False, "error": f"Human AI bridge unavailable: {exc}"}
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return {"success": False, "error": "Human AI bridge returned invalid JSON"}
+
+
 SEARCH_DESCRIPTION = (
     "Search The Agency's on-disk specialist agent roster without loading all "
     "agents into the prompt. Use this when the user asks for an Agency/Data "
@@ -295,6 +328,41 @@ DELEGATE_SCHEMA = {
             },
         },
         "required": ["task"],
+    },
+}
+
+HUMAN_AI_TASK_DESCRIPTION = (
+    "Submit a task to the private Human AI corporate control plane. Use this when "
+    "Hermes should hand work to Human AI's governed cowork session, specialists, "
+    "approvals, workspace, or artifacts."
+)
+HUMAN_AI_TASK_SCHEMA = {
+    "name": "human_ai_task",
+    "description": HUMAN_AI_TASK_DESCRIPTION,
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "message": {"type": "string", "description": "Concrete task for Human AI to execute."},
+            "agent": {"type": "string", "description": "Optional Human AI agent, default cowork."},
+            "model": {"type": "string", "description": "Optional model override."},
+            "sender_id": {"type": "string", "description": "Origin identifier, default hermes."},
+        },
+        "required": ["message"],
+    },
+}
+
+HUMAN_AI_STATUS_DESCRIPTION = (
+    "Poll a Human AI corporate task for status, messages, pending approvals, and artifacts."
+)
+HUMAN_AI_STATUS_SCHEMA = {
+    "name": "human_ai_task_status",
+    "description": HUMAN_AI_STATUS_DESCRIPTION,
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "task_id": {"type": "string", "description": "Task ID returned by human_ai_task."},
+        },
+        "required": ["task_id"],
     },
 }
 
@@ -379,6 +447,28 @@ def register(ctx):
                 "prompt": composed,
             })
 
+    def human_ai_task(args: dict[str, Any], **kwargs) -> str:
+        del kwargs
+        message = str(args.get("message", "")).strip()
+        if not message:
+            return _json({"success": False, "error": "message is required"})
+        payload: dict[str, Any] = {
+            "message": message,
+            "sender_id": str(args.get("sender_id", "hermes")).strip() or "hermes",
+        }
+        for key in ("agent", "model"):
+            value = str(args.get(key, "")).strip()
+            if value:
+                payload[key] = value
+        return _json(_human_ai_request("/corporate/tasks", payload))
+
+    def human_ai_task_status(args: dict[str, Any], **kwargs) -> str:
+        del kwargs
+        task_id = str(args.get("task_id", "")).strip()
+        if not task_id:
+            return _json({"success": False, "error": "task_id is required"})
+        return _json(_human_ai_request(f"/corporate/tasks/{task_id}"))
+
     ctx.register_tool(
         name="agency_agents_search",
         toolset="agency_agents",
@@ -407,6 +497,20 @@ def register(ctx):
         handler=delegate,
         description=DELEGATE_DESCRIPTION,
     )
+    ctx.register_tool(
+        name="human_ai_task",
+        toolset="human_ai",
+        schema=HUMAN_AI_TASK_SCHEMA,
+        handler=human_ai_task,
+        description=HUMAN_AI_TASK_DESCRIPTION,
+    )
+    ctx.register_tool(
+        name="human_ai_task_status",
+        toolset="human_ai",
+        schema=HUMAN_AI_STATUS_SCHEMA,
+        handler=human_ai_task_status,
+        description=HUMAN_AI_STATUS_DESCRIPTION,
+    )
 '''
 
 
@@ -430,6 +534,8 @@ def readme(agent_count: int) -> str:
         - `agency_agents_inspect` — inspect one specialist's metadata or full body.
         - `agency_agents_load` — compose one specialist prompt for the current task.
         - `agency_agents_delegate` — delegate through Hermes `delegate_task` when available.
+        - `human_ai_task` — submit work to the private Human AI corporate control plane.
+        - `human_ai_task_status` — poll a Human AI task for messages, approvals, and artifacts.
 
         Each tool is registered with Hermes' complete function-tool schema, including
         its name, description, and JSON `parameters`. The available arguments are:
@@ -440,6 +546,8 @@ def readme(agent_count: int) -> str:
         | `agency_agents_inspect` | `agent` or `slug`, optional `include_body` |
         | `agency_agents_load` | `agent` or `slug`, optional `task` |
         | `agency_agents_delegate` | `agent` or `slug`, `task` (required), optional `toolsets` |
+        | `human_ai_task` | `message` (required), optional `agent`, `model`, `sender_id` |
+        | `human_ai_task_status` | `task_id` (required) |
 
         A normal flow is: search by capability, take a returned `slug`, then inspect,
         load, or delegate to that specialist. You can ask Hermes to do this in natural
@@ -492,6 +600,18 @@ def readme(agent_count: int) -> str:
         tool schemas are loaded. If Hermes displays these tools without their documented
         arguments, regenerate and reinstall the plugin from the latest Agency Agents
         checkout, then restart Hermes.
+
+        ## Human AI bridge configuration
+
+        Set these environment variables on the Hermes laptop before starting Hermes:
+
+        ```text
+        HUMAN_AI_BASE_URL=http://human-ai.local:8765
+        HUMAN_AI_API_TOKEN=<contents of the Human AI sidecar token file>
+        ```
+
+        `HUMAN_AI_BASE_URL` defaults to the LAN address above. The plugin only submits
+        task messages and polls task results; it does not read either laptop's filesystem.
         """
     ).lstrip()
 
