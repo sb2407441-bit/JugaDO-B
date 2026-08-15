@@ -238,7 +238,7 @@ export function Onboarding({ onDone }: { onDone: (next?: "work" | "gallery" | "a
                   <span className="block text-[13px] font-semibold text-ink mb-0.5">
                     Sign in for one-click connections
                   </span>
-                  OpenWorker handles the OAuth for 20+ tools — no dev consoles, no pasted keys.
+                  Human AI handles the OAuth for 20+ tools — no dev consoles, no pasted keys.
                   Tokens stay on this Mac.
                 </span>
                 {signinPhase ? (
