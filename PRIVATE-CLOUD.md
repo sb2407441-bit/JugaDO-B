@@ -38,6 +38,17 @@ model:
 Keep `HUMAN_AI_API_TOKEN` in Hermes' `.env`, not in a committed config file. Do not leave the
 old StepFun/Gemini fallback chain enabled while validating latency.
 
+From a JugaDO-B checkout on the Hermes laptop, the setup script applies this configuration,
+backs up `config.yaml`/`gateway-config.yaml`, reinstalls the plugin, restarts the gateway, and
+checks Human AI health/model discovery:
+
+```powershell
+git pull --ff-only
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-hermes-lan.ps1
+```
+
+It does not modify Hermes sessions, memories, skills, SOUL, or the WhatsApp device session.
+
 Use the Human AI sidecar token as `Authorization: Bearer <token>` or
 `x-openworker-token: <token>`.
 
