@@ -759,6 +759,33 @@ def create_app(manager: SessionManager) -> FastAPI:
             )
         return {"ok": await manager.resolve_inbox(item_id, resolution)}
 
+    @app.get("/v1/models")
+    def models_list() -> dict[str, Any]:
+        """Expose configured model ids for OpenAI-compatible clients such as Hermes."""
+        settings = manager.get_settings()
+        model_ids: list[str] = []
+        for value in settings.get("models", []):
+            # Human AI stores a comma-separated fallback chain as one default value;
+            # expose each candidate separately so clients can select a stable target.
+            for model in str(value).split(","):
+                model = model.strip()
+                if model and model not in model_ids:
+                    model_ids.append(model)
+        if not model_ids and manager.model:
+            model_ids.append(manager.model)
+        return {
+            "object": "list",
+            "data": [
+                {
+                    "id": model,
+                    "object": "model",
+                    "created": 0,
+                    "owned_by": "human-ai",
+                }
+                for model in model_ids
+            ],
+        }
+
     @app.post("/v1/chat/completions")
     def chat_completions(body: dict) -> dict[str, Any]:
         model = body.get("model", manager.model)

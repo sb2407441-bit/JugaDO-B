@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
 import time
+import pytest
 from fastapi.testclient import TestClient
 
 from coworker.providers import (
@@ -56,6 +56,16 @@ def test_chat_completions_openai_shape(tmp_path):
     assert body["object"] == "chat.completion"
     assert body["choices"][0]["message"]["content"] == "hello world"
     assert body["choices"][0]["finish_reason"] == "stop"
+
+
+def test_models_openai_shape(tmp_path):
+    client = _client(tmp_path, [])
+    resp = client.get("/v1/models")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["object"] == "list"
+    assert body["data"]
+    assert all(item["object"] == "model" for item in body["data"])
 
 
 def test_corporate_bridge_runs_and_reports_task(tmp_path):
