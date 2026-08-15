@@ -21,6 +21,19 @@ Model discovery is available at `GET /v1/models`. Use this stable target for Wha
 omniroute:oc/nemotron-3-ultra-free
 ```
 
+Configure Hermes' primary model as a custom OpenAI-compatible endpoint:
+
+```yaml
+model:
+  provider: custom
+  default: omniroute:oc/nemotron-3-ultra-free
+  base_url: http://human-ai.local:8765/v1
+  api_key: ${HUMAN_AI_API_TOKEN}
+```
+
+Keep `HUMAN_AI_API_TOKEN` in Hermes' `.env`, not in a committed config file. Do not leave the
+old StepFun/Gemini fallback chain enabled while validating latency.
+
 Use the Human AI sidecar token as `Authorization: Bearer <token>` or
 `x-openworker-token: <token>`.
 
