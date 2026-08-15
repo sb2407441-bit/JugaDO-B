@@ -30,6 +30,11 @@ class ScriptedProvider(ProviderClient):
         return ModelCapabilities()
 
 
+class EmptyStreamProvider(ScriptedProvider):
+    def stream(self, *, model, messages, tools=None, **settings):
+        raise RuntimeError("empty upstream stream")
+
+
 def _text(text):
     return AssistantTurn(text=text, finish_reason="stop")
 
@@ -81,6 +86,25 @@ def test_chat_completions_stream_sse_shape(tmp_path):
         for event in events
     )
     assert events[-1]["choices"][0]["finish_reason"] == "stop"
+    assert "data: [DONE]" in resp.text
+
+
+def test_chat_completions_stream_falls_back_to_buffered_completion(tmp_path):
+    manager = SessionManager(
+        workspace=tmp_path,
+        provider=EmptyStreamProvider([_text("buffered fallback")]),
+    )
+    client = TestClient(create_app(manager))
+    resp = client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "gpt-5.5",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": True,
+        },
+    )
+    assert resp.status_code == 200
+    assert "buffered fallback" in resp.text
     assert "data: [DONE]" in resp.text
 
 
