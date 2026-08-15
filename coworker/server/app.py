@@ -653,6 +653,112 @@ def create_app(manager: SessionManager) -> FastAPI:
             body.get("content", ""), body.get("scope", "workspace")
         )
 
+    # -- Private corporate bridge ----------------------------------------------
+    # Hermes is the external coordinator; Human AI remains the governed executor.
+    # These endpoints intentionally reuse the normal sidecar authentication and
+    # inbox/approval machinery instead of creating a second execution path.
+
+    @app.post("/v1/corporate/tasks")
+    async def corporate_task_create(body: dict) -> dict[str, Any]:
+        body = body or {}
+        message = str(body.get("message", "")).strip()
+        if not message:
+            return JSONResponse(
+                {"ok": False, "error": "message is required"}, status_code=400
+            )
+        if len(message) > _MAX_MESSAGE_TEXT_CHARS:
+            return JSONResponse(
+                {"ok": False, "error": "message is too long"}, status_code=400
+            )
+
+        task_id = str(body.get("task_id") or f"corp-{uuid.uuid4().hex[:16]}").strip()
+        agent = str(body.get("agent") or "cowork").strip()
+        workspace = str(body.get("workspace") or "").strip() or None
+        model = str(body.get("model") or "").strip()
+        engine = manager.get_engine(
+            task_id,
+            workspace=workspace,
+            agent=agent,
+        )
+        if engine is None:
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "error": "workspace is invalid or the requested agent cannot run there",
+                },
+                status_code=400,
+            )
+        if model:
+            engine.model = model
+        manager.save(task_id, engine)
+        asyncio.create_task(
+            manager.deliver_to_session(
+                task_id,
+                message,
+                source={
+                    "connector": "hermes",
+                    "kind": "dm",
+                    "channel_id": "corporate-bridge",
+                    "channel_name": "Hermes",
+                    "sender_id": str(body.get("sender_id") or "hermes"),
+                    "sender_name": "Hermes",
+                    "ts": 0,
+                    "text": message,
+                },
+            )
+        )
+        return {
+            "ok": True,
+            "task_id": task_id,
+            "session_id": task_id,
+            "status": "accepted",
+            "agent": agent,
+            "model": engine.model,
+        }
+
+    @app.get("/v1/corporate/tasks/{task_id}")
+    def corporate_task_status(task_id: str) -> dict[str, Any]:
+        record = manager.session_store.load(task_id)
+        if record is None and task_id not in manager._engines:
+            return JSONResponse(
+                {"ok": False, "error": "task not found"}, status_code=404
+            )
+        pending = manager.inbox.list(
+            session_id=task_id, state="pending", visibility=None
+        )
+        messages = manager.session_messages(task_id)
+        return {
+            "ok": True,
+            "task_id": task_id,
+            "session_id": task_id,
+            "status": "running" if manager.is_running(task_id) else "idle",
+            "agent": record.agent if record else "",
+            "workspace": record.workspace if record else None,
+            "model": record.model if record else manager.model,
+            "messages": messages,
+            "pending_approvals": [
+                {"id": item.id, "kind": item.kind, "title": item.title, "body": item.body}
+                for item in pending
+            ],
+            "artifacts": manager.list_artifacts(task_id),
+        }
+
+    @app.post("/v1/corporate/tasks/{task_id}/resolve")
+    async def corporate_task_resolve(task_id: str, body: dict) -> dict[str, Any]:
+        body = body or {}
+        item_id = str(body.get("item_id", "")).strip()
+        resolution = str(body.get("resolution", "deny"))
+        if not item_id:
+            return JSONResponse(
+                {"ok": False, "error": "item_id is required"}, status_code=400
+            )
+        if not any(item.id == item_id for item in manager.inbox.list(session_id=task_id)):
+            return JSONResponse(
+                {"ok": False, "error": "approval item not found for task"},
+                status_code=404,
+            )
+        return {"ok": await manager.resolve_inbox(item_id, resolution)}
+
     @app.post("/v1/chat/completions")
     def chat_completions(body: dict) -> dict[str, Any]:
         model = body.get("model", manager.model)

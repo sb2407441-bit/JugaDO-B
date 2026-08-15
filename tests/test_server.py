@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+import time
 from fastapi.testclient import TestClient
 
 from coworker.providers import (
@@ -55,6 +56,28 @@ def test_chat_completions_openai_shape(tmp_path):
     assert body["object"] == "chat.completion"
     assert body["choices"][0]["message"]["content"] == "hello world"
     assert body["choices"][0]["finish_reason"] == "stop"
+
+
+def test_corporate_bridge_runs_and_reports_task(tmp_path):
+    client = _client(tmp_path, [_text("CORPORATE-BRIDGE-OK")])
+    created = client.post(
+        "/v1/corporate/tasks",
+        json={"message": "reply with exactly CORPORATE-BRIDGE-OK"},
+    )
+    assert created.status_code == 200
+    task_id = created.json()["task_id"]
+
+    for _ in range(20):
+        status = client.get(f"/v1/corporate/tasks/{task_id}").json()
+        if any(
+            message.get("content") == "CORPORATE-BRIDGE-OK"
+            for message in status.get("messages", [])
+            if message.get("role") == "assistant"
+        ):
+            break
+        time.sleep(0.01)
+    else:
+        pytest.fail(f"corporate task did not finish: {status}")
 
 
 def test_agents_and_memory_rest(tmp_path):
