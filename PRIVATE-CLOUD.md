@@ -9,6 +9,18 @@ front-door coordinator; it submits tasks over the authenticated LAN API.
 http://human-ai.local:8765/v1/corporate/tasks
 ```
 
+Human AI also exposes an OpenAI-compatible endpoint for Hermes:
+
+```text
+http://human-ai.local:8765/v1
+```
+
+Model discovery is available at `GET /v1/models`. Use this stable target for WhatsApp turns:
+
+```text
+omniroute:oc/nemotron-3-ultra-free
+```
+
 Use the Human AI sidecar token as `Authorization: Bearer <token>` or
 `x-openworker-token: <token>`.
 
