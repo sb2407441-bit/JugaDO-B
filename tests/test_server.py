@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 import pytest
 from fastapi.testclient import TestClient
@@ -56,6 +57,31 @@ def test_chat_completions_openai_shape(tmp_path):
     assert body["object"] == "chat.completion"
     assert body["choices"][0]["message"]["content"] == "hello world"
     assert body["choices"][0]["finish_reason"] == "stop"
+
+
+def test_chat_completions_stream_sse_shape(tmp_path):
+    client = _client(tmp_path, [_text("streamed hello")])
+    resp = client.post(
+        "/v1/chat/completions",
+        json={
+            "model": "gpt-5.5",
+            "messages": [{"role": "user", "content": "hi"}],
+            "stream": True,
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/event-stream")
+    events = [
+        json.loads(line.removeprefix("data: "))
+        for line in resp.text.splitlines()
+        if line.startswith("data: ") and line != "data: [DONE]"
+    ]
+    assert any(
+        event["choices"][0]["delta"].get("content") == "streamed hello"
+        for event in events
+    )
+    assert events[-1]["choices"][0]["finish_reason"] == "stop"
+    assert "data: [DONE]" in resp.text
 
 
 def test_models_openai_shape(tmp_path):

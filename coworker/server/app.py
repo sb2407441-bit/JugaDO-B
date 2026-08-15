@@ -12,6 +12,7 @@ import json
 import os
 import re
 import secrets
+import time
 import uuid
 from collections import deque
 from contextlib import asynccontextmanager
@@ -20,7 +21,7 @@ from typing import Any, Optional
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 # Origins allowed to talk to the local sidecar. It binds to 127.0.0.1, but a page in the
 # user's own browser can still reach loopback — so without an origin gate, any website they
@@ -789,6 +790,126 @@ def create_app(manager: SessionManager) -> FastAPI:
     @app.post("/v1/chat/completions")
     def chat_completions(body: dict) -> dict[str, Any]:
         model = body.get("model", manager.model)
+        if body.get("stream") is True:
+            messages = body.get("messages", [])
+            tools = body.get("tools")
+
+            def stream_events():
+                completion_id = "chatcmpl-" + uuid.uuid4().hex[:12]
+                created = int(time.time())
+                role_sent = False
+                emitted_text = False
+                emitted_tool_calls = False
+                final_turn = None
+
+                def chunk(delta: dict[str, Any], finish_reason=None) -> str:
+                    nonlocal role_sent
+                    if not role_sent:
+                        delta = {"role": "assistant", **delta}
+                        role_sent = True
+                    return _sse_data(
+                        {
+                            "id": completion_id,
+                            "object": "chat.completion.chunk",
+                            "created": created,
+                            "model": model,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "delta": delta,
+                                    "finish_reason": finish_reason,
+                                }
+                            ],
+                        }
+                    )
+
+                try:
+                    for stream_chunk in manager.provider.stream(
+                        model=model, messages=messages, tools=tools
+                    ):
+                        text_delta = getattr(stream_chunk, "text_delta", None)
+                        if text_delta:
+                            emitted_text = True
+                            yield chunk({"content": text_delta})
+                        turn = getattr(stream_chunk, "turn", None)
+                        if turn is not None:
+                            final_turn = turn
+                            if turn.text and not emitted_text:
+                                emitted_text = True
+                                yield chunk({"content": turn.text})
+                            if turn.tool_calls and not emitted_tool_calls:
+                                emitted_tool_calls = True
+                                yield chunk(
+                                    {
+                                        "tool_calls": [
+                                            {
+                                                "index": index,
+                                                "id": tool_call.id,
+                                                "type": "function",
+                                                "function": {
+                                                    "name": tool_call.name,
+                                                    "arguments": json.dumps(tool_call.arguments),
+                                                },
+                                            }
+                                            for index, tool_call in enumerate(turn.tool_calls)
+                                        ]
+                                    }
+                                )
+                except Exception:
+                    # Some OpenAI-compatible upstreams advertise streaming but return an
+                    # empty stream. Complete once through the normal fallback router so
+                    # Hermes still receives a valid SSE response instead of retrying.
+                    if not emitted_text and not emitted_tool_calls:
+                        try:
+                            final_turn = manager.provider_complete(model, messages, tools)
+                            if final_turn.text:
+                                emitted_text = True
+                                yield chunk({"content": final_turn.text})
+                            if final_turn.tool_calls:
+                                emitted_tool_calls = True
+                                yield chunk(
+                                    {
+                                        "tool_calls": [
+                                            {
+                                                "index": index,
+                                                "id": tool_call.id,
+                                                "type": "function",
+                                                "function": {
+                                                    "name": tool_call.name,
+                                                    "arguments": json.dumps(tool_call.arguments),
+                                                },
+                                            }
+                                            for index, tool_call in enumerate(final_turn.tool_calls)
+                                        ]
+                                    }
+                                )
+                        except Exception as fallback_error:
+                            yield _sse_data(
+                                {
+                                    "error": {
+                                        "message": str(fallback_error),
+                                        "type": "server_error",
+                                    }
+                                }
+                            )
+
+                finish_reason = (
+                    getattr(final_turn, "finish_reason", None)
+                    if final_turn is not None
+                    else None
+                ) or ("tool_calls" if emitted_tool_calls else "stop")
+                yield chunk({}, finish_reason=finish_reason)
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(
+                stream_events(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                },
+            )
         turn = manager.provider_complete(
             model, body.get("messages", []), body.get("tools")
         )
@@ -2098,6 +2219,10 @@ def _parse_json(s: str) -> dict[str, Any]:
         return v if isinstance(v, dict) else {}
     except Exception:
         return {}
+
+
+def _sse_data(payload: dict[str, Any]) -> str:
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
 def _openai_response(model: str, turn: AssistantTurn) -> dict[str, Any]:
