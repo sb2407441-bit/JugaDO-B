@@ -1,6 +1,7 @@
 param(
     [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")),
-    [string]$HumanAiBaseUrl = "http://human-ai.local:8765",
+    [string]$HumanAiBaseUrl = "",
+    [string]$HumanAiHost = "",
     [string]$Model = "omniroute:oc/nemotron-3-ultra-free"
 )
 
@@ -52,6 +53,51 @@ foreach ($path in @($ConfigPath, (Join-Path $HermesHome "gateway-config.yaml")))
     }
 }
 
+# Resolve the Human AI server address. Priority:
+#   1. Explicit -HumanAiBaseUrl
+#   2. Explicit -HumanAiHost (port 8765 assumed)
+#   3. Existing config.yaml model.base_url host if reachable
+#   4. DNS hostname resolution
+#   5. LAN scan for a server listening on TCP 8765
+if (-not $HumanAiBaseUrl) {
+    $resolved = $HumanAiHost
+    if (-not $resolved -and (Test-Path $ConfigPath)) {
+        $existing = Select-String -LiteralPath $ConfigPath -Pattern '^\s*base_url:\s*http://([^/:]+)' | Select-Object -Last 1
+        if ($existing -and $existing.Matches[0].Groups[1].Value) {
+            $resolved = $existing.Matches[0].Groups[1].Value
+        }
+    }
+    if (-not $resolved) {
+        foreach ($name in @("human-ai.local", "human-ai", "openworker.local", "humanai.local", "humanai")) {
+            try {
+                $dns = Resolve-DnsName $name -ErrorAction Stop | Where-Object { $_.IPAddress }
+                if ($dns) { $resolved = ($dns | Select-Object -First 1).IPAddress; break }
+            } catch { }
+        }
+    }
+    if (-not $resolved) {
+        Write-Host "Scanning local subnet for Human AI server (TCP 8765)..."
+        $localIp = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" -and $_.PrefixOrigin -eq "Dhcp" } |
+            Select-Object -First 1).IPAddress
+        if (-not $localIp) {
+            throw "Could not determine local IPv4 address to scan for Human AI. Pass -HumanAiBaseUrl explicitly."
+        }
+        $subnet = ($localIp -split '\.')[0..2] -join '.'
+        foreach ($i in 1..254) {
+            $ip = "$subnet.$i"
+            if ($ip -eq $localIp) { continue }
+            $tcp = Test-NetConnection -ComputerName $ip -Port 8765 -WarningAction SilentlyContinue -InformationLevel Quiet
+            if ($tcp) { $resolved = $ip; break }
+        }
+    }
+    if (-not $resolved) {
+        throw "Could not locate the Human AI server on this network. Pass -HumanAiBaseUrl (or -HumanAiHost) explicitly."
+    }
+    $HumanAiBaseUrl = "http://$resolved:8765"
+    Write-Host "Auto-detected Human AI at $HumanAiBaseUrl"
+}
+
 Write-Host "Syncing JugaDO-B..."
 Invoke-Checked "git" @("-C", $RepoRoot, "pull", "--ff-only")
 
@@ -73,6 +119,15 @@ try {
 Write-Host "Configuring Human AI as Hermes' primary model..."
 [Environment]::SetEnvironmentVariable("HUMAN_AI_BASE_URL", $HumanAiBaseUrl, "User")
 $env:HUMAN_AI_BASE_URL = $HumanAiBaseUrl
+if (Test-Path $EnvPath) {
+    $envLines = Get-Content -LiteralPath $EnvPath
+    $envLines = $envLines | ForEach-Object {
+        if ($_ -match '^\s*HUMAN_AI_BASE_URL\s*=') { "HUMAN_AI_BASE_URL=$HumanAiBaseUrl" } else { $_ }
+    }
+    if ($envLines -notmatch 'HUMAN_AI_BASE_URL=') { $envLines += "HUMAN_AI_BASE_URL=$HumanAiBaseUrl" }
+    Set-Content -LiteralPath $EnvPath -Value $envLines -Encoding UTF8
+    Write-Host "Updated .env HUMAN_AI_BASE_URL -> $HumanAiBaseUrl"
+}
 
 try {
     Invoke-Checked "hermes" @("config", "set", "model.provider", "custom")
