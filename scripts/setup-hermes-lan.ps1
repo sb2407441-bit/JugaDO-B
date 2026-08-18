@@ -64,14 +64,20 @@ if (-not $HumanAiBaseUrl) {
     if (-not $resolved -and (Test-Path $ConfigPath)) {
         $existing = Select-String -LiteralPath $ConfigPath -Pattern '^\s*base_url:\s*http://([^/:]+)' | Select-Object -Last 1
         if ($existing -and $existing.Matches[0].Groups[1].Value) {
-            $resolved = $existing.Matches[0].Groups[1].Value
+            $candidate = $existing.Matches[0].Groups[1].Value
+            $tcp = Test-NetConnection -ComputerName $candidate -Port 8765 -WarningAction SilentlyContinue -InformationLevel Quiet
+            if ($tcp) { $resolved = $candidate }
         }
     }
     if (-not $resolved) {
         foreach ($name in @("human-ai.local", "human-ai", "openworker.local", "humanai.local", "humanai")) {
             try {
                 $dns = Resolve-DnsName $name -ErrorAction Stop | Where-Object { $_.IPAddress }
-                if ($dns) { $resolved = ($dns | Select-Object -First 1).IPAddress; break }
+                if ($dns) {
+                    $candidate = ($dns | Select-Object -First 1).IPAddress
+                    $tcp = Test-NetConnection -ComputerName $candidate -Port 8765 -WarningAction SilentlyContinue -InformationLevel Quiet
+                    if ($tcp) { $resolved = $candidate; break }
+                }
             } catch { }
         }
     }
