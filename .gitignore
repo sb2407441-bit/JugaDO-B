@@ -13,6 +13,13 @@ runtime-state*/
 server.out.log
 server.err.log
 
+# Local browser/session artifacts and test traces (never commit)
+.playwright-mcp/
+.state-test/
+.playwright/
+playwright-report/
+test-results/
+
 # Credentials and machine-local secrets
 .env
 .env.*
